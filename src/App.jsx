@@ -1,6 +1,6 @@
 
 import './App.css'
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 
 import QuestionList from './components/QuestionList';
 import QuestionForm from './components/QuestionForm';
@@ -14,7 +14,19 @@ const initialQuestions = [
 
 
 function App() {
- const [questions, setQuestions] = useState(initialQuestions);
+ const [questions, setQuestions] = useState(() => {
+  try {
+    const saved = localStorage.getItem("questions");
+    return saved ? JSON.parse(saved) : initialQuestions;
+  } catch  {
+    return initialQuestions;
+  }
+ });
+
+  useEffect(() => {
+    localStorage.setItem("questions", JSON.stringify(questions));
+    
+  }, [questions]);
  const [editingQuestion, setEditingQuestion] = useState(null);
  const [isFormOpen, setIsFormOpen] = useState(false);
  function handleDeleteQuestion(id) {
@@ -28,13 +40,14 @@ function App() {
 
   function handleAddQuestion(question) {
   setQuestions((current) => [...current, { ...question, id: crypto.randomUUID() }]);
+  closeForm();
 }
 
 function handleUpdateQuestion(updated) {
   setQuestions((current) =>
     current.map((q) => (q.id === updated.id ? updated : q))
   );
-  setEditingQuestion(null);
+  closeForm();
 }
 
 function openAddForm() {
