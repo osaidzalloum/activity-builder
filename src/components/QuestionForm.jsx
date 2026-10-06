@@ -1,6 +1,5 @@
 import { useState } from 'react';
-
-function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCancelEdit }) {
+function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCancel }) {
     const [text, setText] = useState(editingQuestion?.text ?? "");
     const [options, setOptions] = useState(editingQuestion?.options ?? ["", "", "", ""]);
     const [correctIndex, setCorrectIndex] = useState(editingQuestion?.correctIndex ?? 0);
@@ -25,23 +24,22 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
             return;
         }
         onAddQuestion({ text, options, correctIndex });
-        setText("");
-        setOptions(["", "", "", ""]);
-        setCorrectIndex(0);
+
     }
 
     return (
 
-        <form onSubmit={handleSubmit}>
+        <form className="card form" onSubmit={handleSubmit}>
             <h3>{editingQuestion ? "تعديل سؤال" : "إضافة سؤال"}</h3>
             <input
+                className="form-control"
                 placeholder="نص السؤال"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
             />
             {options.map((opt, i) => (
-                <div key={i}>
-                    <input
+                <div key={i} className="option-row">
+                    <input className="form-check-input"
                         type="radio"
                         name="correctOption"
                         checked={correctIndex === i}
@@ -49,6 +47,7 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
                         aria-label={`تحديد الخيار ${i + 1} كإجابة صحيحة`}
                     />
                     <input
+                        className="form-control"
                         value={opt}
                         onChange={(e) => handleOptionChange(i, e.target.value)}
                         placeholder={`الخيار ${i + 1}`}
@@ -56,12 +55,11 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
                 </div>
             ))}
             {error && <p className="error">{error}</p>}
-            <button type="submit">
-                {editingQuestion ? "حفظ التعديل" : "إضافة سؤال"}
-            </button>
-            {editingQuestion && (
-                <button type="button" onClick={onCancelEdit}>إلغاء</button>
-            )}
+            <div className="actions">
+    <button className="btn btn-primary" type="submit">حفظ</button>
+    <button className="btn" type="button" onClick={onCancel}>إلغاء</button>
+</div>          
+            
         </form>
 
     );

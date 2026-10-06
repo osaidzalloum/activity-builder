@@ -1,17 +1,23 @@
 function QuestionItem({ question, onDeleteQuestion, onEditQuestion }) {
 
   return (
-    <div>
+    <div className="card">
        <h3>{question.text}</h3>
-          <ul>
+          <ul className="options">
             {question.options.map((opt, i) => (
               <li key={i} className={i === question.correctIndex ? "correct-answer" : ""}>
                 {opt}
               </li>
             ))}
           </ul>
-          <button onClick={() => onDeleteQuestion(question.id)}> حذف </button>
-          <button onClick={() => onEditQuestion(question)}>تعديل</button>
+          <div className="actions">
+            <button className="btn btn-delete" onClick={() => onDeleteQuestion(question.id)}>
+              حذف
+            </button>
+            <button className="btn btn-edit" onClick={() => onEditQuestion(question)}>
+              تعديل
+            </button>
+          </div>
         </div>
   );
 }

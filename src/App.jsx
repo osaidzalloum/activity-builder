@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import QuestionList from './components/QuestionList';
 import QuestionForm from './components/QuestionForm';
-
+import Modal from './components/Modal';
 const initialQuestions = [
   { id: "q1", text: "ما ناتج 5 + 3؟", options: ["6", "8", "9", "7"], correctIndex: 1 },
   { id: "q2", text: "ما عاصمة الأردن؟", options: ["إربد", "الزرقاء", "عمّان", "العقبة"], correctIndex: 2 },
@@ -16,6 +16,7 @@ const initialQuestions = [
 function App() {
  const [questions, setQuestions] = useState(initialQuestions);
  const [editingQuestion, setEditingQuestion] = useState(null);
+ const [isFormOpen, setIsFormOpen] = useState(false);
  function handleDeleteQuestion(id) {
     setQuestions((currentQuestions) =>
       currentQuestions.filter((question) => question.id !== id)
@@ -35,21 +36,44 @@ function handleUpdateQuestion(updated) {
   );
   setEditingQuestion(null);
 }
+
+function openAddForm() {
+  setEditingQuestion(null);
+  setIsFormOpen(true);
+}
+
+function openEditForm(question) {
+  setEditingQuestion(question);
+  setIsFormOpen(true);
+}
+
+function closeForm() {
+  setIsFormOpen(false);
+  setEditingQuestion(null);
+}
   return (
-    <div dir="rtl">
+    <div dir="rtl" className="container">
       <h1>منشئ الأنشطة</h1>
       <QuestionList
         questions={questions}
         onDeleteQuestion={handleDeleteQuestion}
-        onEditQuestion={setEditingQuestion}
+        onEditQuestion={openEditForm}
       />
-      <QuestionForm
-        key={editingQuestion?.id ?? "new"}
-        editingQuestion={editingQuestion}
-        onAddQuestion={handleAddQuestion}
-        onUpdateQuestion={handleUpdateQuestion}
-        onCancelEdit={() => setEditingQuestion(null)}
-      />
+      <button className="btn btn-primary" onClick={openAddForm}>
+        + إضافة سؤال
+      </button>
+
+      {isFormOpen && (
+        <Modal onClose={closeForm}>
+          <QuestionForm
+            key={editingQuestion?.id ?? "new"}
+            editingQuestion={editingQuestion}
+            onAddQuestion={handleAddQuestion}
+            onUpdateQuestion={handleUpdateQuestion}
+            onCancel={closeForm}
+          />
+        </Modal>
+      )}
     </div>
   );
 }
