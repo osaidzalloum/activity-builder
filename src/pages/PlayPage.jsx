@@ -25,16 +25,21 @@ function PlayPage({ questions }) {
     );
   }
   const question = questions[currentIndex];
+  const answered = currentIndex + (selected !== null ? 1 : 0);
+  const progress = (answered / questions.length) * 100;
   const isCorrect = selected === question.correctIndex;
-  
-function getOptionClass(index) {
-  if (selected === null) return "play-option";
-  if (index === question.correctIndex) return "play-option correct";
-  if (index === selected) return "play-option wrong";
-  return "play-option";
-}
+
+  function getOptionClass(index) {
+    if (selected === null) return "play-option";
+    if (index === question.correctIndex) return "play-option correct";
+    if (index === selected) return "play-option wrong";
+    return "play-option";
+  }
   return (
     <div className="card play-container">
+      <div className="progress">
+        <div className="progress-fill" style={{ width: `${progress}%` }} />
+      </div>
       <h2>السؤال {currentIndex + 1} من {questions.length}</h2>
       <p>{question.text}</p>
       <ul className="options">
