@@ -248,3 +248,7 @@ ol.options {
   border-radius: 8px;
   margin-bottom: 8px;
 }
+
+.order-item {
+  touch-action: none;
+}
