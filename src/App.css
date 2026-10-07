@@ -134,6 +134,21 @@ button {
   padding: 0;
   background: none;
 }
+
+.play-container .options li.order-item {
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.play-container .options li.order-item.correct {
+  background: #dcfce7;
+}
+
+.play-container .options li.order-item.wrong {
+  background: #fee2e2;
+}
 .play-option {
   width: 100%;
   padding: 12px;
@@ -218,5 +233,18 @@ ol.options {
   border-radius: 999px;
   background: var(--bg);
   color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   margin-bottom: 8px;
 }

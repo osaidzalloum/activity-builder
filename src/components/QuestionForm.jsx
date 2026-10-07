@@ -5,63 +5,117 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
     const [correctIndex, setCorrectIndex] = useState(editingQuestion?.correctIndex ?? 0);
     const [error, setError] = useState("");
 
+    const [type, setType] = useState(editingQuestion?.type ?? "mcq");
+    const [items, setItems] = useState(editingQuestion?.items ?? ["", "", ""]);
+
     function handleOptionChange(index, value) {
         const newOptions = [...options];
         newOptions[index] = value;
         setOptions(newOptions);
     }
+    function handleItemChange(index, value) {
+        const newItems = [...items];
+        newItems[index] = value;
+        setItems(newItems);
+    }
 
-    function handleSubmit(e) {
+    function addItem() {
+        setItems([...items, ""]);
+    }
+
+    function removeItem(index) {
+        setItems(items.filter((_, i) => i !== index));
+    }
+
+     function handleSubmit(e) {
         e.preventDefault();
 
-        if (text.trim() === "" || options.some((opt) => opt.trim() === "")) {
+        const fields = type === "order" ? items : options;
+        if (text.trim() === "" || fields.some((f) => f.trim() === "")) {
             setError("يرجى ملء جميع الحقول.");
             return;
         }
         setError("");
-        if (editingQuestion) {
-            onUpdateQuestion({ ...editingQuestion, text, options, correctIndex });
-            return;
-        }
-        onAddQuestion({ type: "mcq", text, options, correctIndex });
 
+        const data = type === "order"
+            ? { type, text, items }
+            : { type, text, options, correctIndex };
+
+        if (editingQuestion) {
+            onUpdateQuestion({ ...editingQuestion, ...data });
+        } else {
+            onAddQuestion(data);
+        }
     }
 
     return (
-
         <form className="card form" onSubmit={handleSubmit}>
             <h3>{editingQuestion ? "تعديل سؤال" : "إضافة سؤال"}</h3>
+
+            {!editingQuestion && (
+                <select value={type} onChange={(e) => setType(e.target.value)}>
+                    <option value="mcq">اختيار من متعدد</option>
+                    <option value="order">ترتيب</option>
+                </select>
+            )}
+
             <input
-                className="form-control"
                 placeholder="نص السؤال"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
             />
-            {options.map((opt, i) => (
-                <div key={i} className="option-row">
-                    <input className="form-check-input"
-                        type="radio"
-                        name="correctOption"
-                        checked={correctIndex === i}
-                        onChange={() => setCorrectIndex(i)}
-                        aria-label={`تحديد الخيار ${i + 1} كإجابة صحيحة`}
-                    />
-                    <input
-                        className="form-control"
-                        value={opt}
-                        onChange={(e) => handleOptionChange(i, e.target.value)}
-                        placeholder={`الخيار ${i + 1}`}
-                    />
-                </div>
-            ))}
-            {error && <p className="error">{error}</p>}
-            <div className="actions">
-    <button className="btn btn-primary" type="submit">حفظ</button>
-    <button className="btn" type="button" onClick={onCancel}>إلغاء</button>
-</div>          
-            
-        </form>
 
+            {type === "mcq" ? (
+                options.map((opt, i) => (
+                    <div key={i} className="option-row">
+                        <input
+                            type="radio"
+                            name="correctOption"
+                            checked={correctIndex === i}
+                            onChange={() => setCorrectIndex(i)}
+                            aria-label={`تحديد الخيار ${i + 1} كإجابة صحيحة`}
+                        />
+                        <input
+                            value={opt}
+                            onChange={(e) => handleOptionChange(i, e.target.value)}
+                            placeholder={`الخيار ${i + 1}`}
+                        />
+                    </div>
+                ))
+            ) : (
+                <>
+                    <p className="hint">اكتب العناصر بالترتيب الصحيح، واللعبة بتخلطها للطالب.</p>
+                    {items.map((item, i) => (
+                        <div key={i} className="option-row">
+                            <span>{i + 1}.</span>
+                            <input
+                                value={item}
+                                onChange={(e) => handleItemChange(i, e.target.value)}
+                                placeholder={`العنصر ${i + 1}`}
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-delete"
+                                onClick={() => removeItem(i)}
+                                disabled={items.length <= 2}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ))}
+                    <button type="button" className="btn" onClick={addItem}>
+                        + إضافة عنصر
+                    </button>
+                </>
+            )}
+
+            {error && <p className="error">{error}</p>}
+
+            <div className="actions">
+                <button className="btn btn-primary" type="submit">حفظ</button>
+                <button className="btn" type="button" onClick={onCancel}>إلغاء</button>
+            </div>
+        </form>
     );
 }
 
