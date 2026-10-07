@@ -129,3 +129,30 @@ button {
   text-decoration: none;
   font-weight: bold;
 }
+
+.play-container .options li {
+  padding: 0;
+  background: none;
+}
+.play-option {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.play-option.correct {
+  background: #dcfce7;
+  border-color: var(--success);
+}
+
+.play-option.wrong {
+  background: #fee2e2;
+  border-color: var(--danger);
+}
+.play-option:disabled {
+  color: inherit;
+  cursor: default;
+}
