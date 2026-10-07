@@ -1,16 +1,44 @@
-# React + Vite
+# Activity Builder | منشئ الأنشطة
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An Arabic-first (RTL) web app for teachers to build multiple-choice activities and for students to solve them with instant feedback.
 
-Currently, two official plugins are available:
+🔗 **Live demo:** https://your-link.vercel.app
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+![Demo](docs/demo.gif)
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Create, edit, and delete multiple-choice questions in a modal form
+- Input validation with inline error messages
+- Questions persist across sessions using localStorage (with safe parsing)
+- Student mode: one question at a time, instant correct/wrong feedback, final score
+- Full RTL support for Arabic
+- Client-side routing between builder and play modes
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React (Vite)
+- React Router
+- CSS with custom properties
+- Deployed on Vercel
+
+## What I Learned
+
+- Lifting state up to share data between routes
+- Resetting component state using the `key` prop instead of syncing with `useEffect`
+- Handling stale state (e.g. deleting a question while it is being edited)
+- Validating data from external sources like localStorage before using it
+- Cleaning up event listeners in `useEffect`
+
+## Run Locally
+
+```bash
+npm install
+npm run dev
+```
+
+## Roadmap
+
+- [ ] More question types (drag & drop, matching, ordering)
+- [ ] User accounts and shareable activity links (Supabase)
+- [ ] TypeScript migration
