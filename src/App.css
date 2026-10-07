@@ -156,3 +156,14 @@ button {
   color: inherit;
   cursor: default;
 }
+
+
+.nav a {
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+
+.nav a.active {
+  background: var(--primary);
+  color: white;
+}
