@@ -2,7 +2,7 @@
 
 An Arabic-first (RTL) web app for teachers to build multiple-choice activities and for students to solve them with instant feedback.
 
-🔗 **Live demo:** https://your-link.vercel.app
+🔗 **Live demo:** https://activity-builder-chi.vercel.app/
 
 ![Demo](docs/demo.gif)
 
