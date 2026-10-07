@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import McqQuestion from '../components/play/McqQuestion';
 
 
 function PlayPage({ questions }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selected, setSelected] = useState(null);
+  const [result, setResult] = useState(null);
   const [score, setScore] = useState(0);
-  
+
   if (questions.length === 0) {
     return <p>لا توجد أسئلة بعد. أضف أسئلة من صفحة البناء.</p>;
   }
+
   if (currentIndex === questions.length) {
     return (
       <div className="card">
@@ -16,7 +18,7 @@ function PlayPage({ questions }) {
         <p>نتيجتك: {score} من {questions.length}</p>
         <button className="btn btn-primary" onClick={() => {
           setCurrentIndex(0);
-          setSelected(null);
+          setResult(null);
           setScore(0);
         }}>
           إعادة المحاولة
@@ -24,55 +26,40 @@ function PlayPage({ questions }) {
       </div>
     );
   }
-  const question = questions[currentIndex];
-  const answered = currentIndex + (selected !== null ? 1 : 0);
-  const progress = (answered / questions.length) * 100;
-  const isCorrect = selected === question.correctIndex;
 
-  function getOptionClass(index) {
-    if (selected === null) return "play-option";
-    if (index === question.correctIndex) return "play-option correct";
-    if (index === selected) return "play-option wrong";
-    return "play-option";
+  const question = questions[currentIndex];
+  const answered = currentIndex + (result !== null ? 1 : 0);
+  const progress = (answered / questions.length) * 100;
+
+  function handleAnswer(isCorrect) {
+    setResult(isCorrect);
+    if (isCorrect) setScore((s) => s + 1);
   }
+
+  function handleNext() {
+    setCurrentIndex((i) => i + 1);
+    setResult(null);
+  }
+
   return (
     <div className="card play-container">
       <div className="progress">
         <div className="progress-fill" style={{ width: `${progress}%` }} />
       </div>
       <h2>السؤال {currentIndex + 1} من {questions.length}</h2>
-      <p>{question.text}</p>
-      <ul className="options">
-        {question.options.map((option, index) => (
-          <li key={index}>
-            <button className={getOptionClass(index)} onClick={() => setSelected(index)} disabled={selected !== null}>
-              {option}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {selected !== null && (
+
+      <McqQuestion key={question.id} question={question} onAnswer={handleAnswer} />
+
+      {result !== null && (
         <div>
-          <p>{isCorrect ? '✅ إجابة صحيحة' : '❌ إجابة خاطئة'}</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              if (isCorrect) {
-                setScore((s) => s + 1);
-              }
-              setCurrentIndex(currentIndex + 1);
-              setSelected(null);
-            }}
-          >
+          <p>{result ? '✅ إجابة صحيحة' : '❌ إجابة خاطئة'}</p>
+          <button className="btn btn-primary" onClick={handleNext}>
             {currentIndex < questions.length - 1 ? 'السؤال التالي' : 'إنهاء اللعبة'}
           </button>
         </div>
       )}
-
     </div>
   );
-
-
 }
 
 export default PlayPage;
