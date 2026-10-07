@@ -23,7 +23,7 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
             onUpdateQuestion({ ...editingQuestion, text, options, correctIndex });
             return;
         }
-        onAddQuestion({ text, options, correctIndex });
+        onAddQuestion({ type: "mcq", text, options, correctIndex });
 
     }
 
