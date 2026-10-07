@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import McqQuestion from '../components/play/McqQuestion';
-
+import OrderQuestion from '../components/play/OrderQuestion';
 
 function PlayPage({ questions }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -48,7 +48,11 @@ function PlayPage({ questions }) {
       </div>
       <h2>السؤال {currentIndex + 1} من {questions.length}</h2>
 
-      <McqQuestion key={question.id} question={question} onAnswer={handleAnswer} />
+      {question.type === "mcq" ? (
+        <McqQuestion key={question.id} question={question} onAnswer={handleAnswer} />
+      ) : (
+        <OrderQuestion key={question.id} question={question} onAnswer={handleAnswer} />
+      )}
 
       {result !== null && (
         <div>

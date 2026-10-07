@@ -181,3 +181,30 @@ button {
   background: var(--primary);
   transition: width 0.3s ease;
 }
+
+
+.order-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid transparent;
+}
+
+.order-item span {
+  flex: 1;
+}
+
+.order-item.correct {
+  background: #dcfce7;
+  border-color: var(--success);
+}
+
+.order-item.wrong {
+  background: #fee2e2;
+  border-color: var(--danger);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

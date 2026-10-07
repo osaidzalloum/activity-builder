@@ -10,6 +10,7 @@ const initialQuestions = [
   { id: "q1", type: "mcq", text: "ما ناتج 5 + 3؟", options: ["6", "8", "9", "7"], correctIndex: 1 },
   { id: "q2", type: "mcq", text: "ما عاصمة الأردن؟", options: ["إربد", "الزرقاء", "عمّان", "العقبة"], correctIndex: 2 },
   { id: "q3", type: "mcq", text: "كم عدد أيام الأسبوع؟", options: ["5", "6", "7", "8"], correctIndex: 2 },
+  { id: "q4", type: "order", text: "رتّب مراحل دورة الماء", items: ["التبخر", "التكاثف", "الهطول", "الجريان"] },
 ];
 
 
