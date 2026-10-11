@@ -252,3 +252,59 @@ ol.options {
 .order-item {
   touch-action: none;
 }
+
+
+
+.match-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.match-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.match-item {
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+  text-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.match-item:disabled {
+  cursor: default;
+  color: inherit;
+}
+
+.match-item.active {
+  border-color: var(--primary);
+  background: #dbeafe;
+}
+
+.match-item.matched {
+  border-color: var(--primary);
+}
+
+.match-item.correct {
+  background: #dcfce7;
+  border-color: var(--success);
+}
+
+.match-item.wrong {
+  background: #fee2e2;
+  border-color: var(--danger);
+}
+
+.match-choice {
+  color: var(--muted);
+  font-size: 13px;
+}

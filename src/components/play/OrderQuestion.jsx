@@ -3,14 +3,7 @@ import { useState } from 'react';
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import SortableItem from './SortableItem';
-function shuffle(array) {
-    const copy = [...array];
-    for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-}
+import shuffle from '../../utils/shuffle';
 function OrderQuestion({ question, onAnswer }) {
     const [currentOrder, setCurrentOrder] = useState(() => {
         let shuffled = shuffle(question.items);

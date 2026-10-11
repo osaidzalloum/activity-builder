@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import McqQuestion from '../components/play/McqQuestion';
 import OrderQuestion from '../components/play/OrderQuestion';
+import MatchQuestion from '../components/play/MatchQuestion';
+const questionComponents = {
+  mcq: McqQuestion,
+  order: OrderQuestion,
+  match: MatchQuestion,
+};
 
 function PlayPage({ questions }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -11,7 +17,7 @@ function PlayPage({ questions }) {
     return <p>لا توجد أسئلة بعد. أضف أسئلة من صفحة البناء.</p>;
   }
 
-  if (currentIndex === questions.length) {
+  if (currentIndex >= questions.length) {
     return (
       <div className="card">
         <h2>انتهى النشاط!</h2>
@@ -28,6 +34,7 @@ function PlayPage({ questions }) {
   }
 
   const question = questions[currentIndex];
+  const QuestionComponent = questionComponents[question.type];
   const answered = currentIndex + (result !== null ? 1 : 0);
   const progress = (answered / questions.length) * 100;
 
@@ -40,7 +47,9 @@ function PlayPage({ questions }) {
     setCurrentIndex((i) => i + 1);
     setResult(null);
   }
-
+  if (!QuestionComponent) {
+    return <p>نوع سؤال غير مدعوم: {question.type}</p>;
+  }
   return (
     <div className="card play-container">
       <div className="progress">
@@ -48,12 +57,7 @@ function PlayPage({ questions }) {
       </div>
       <h2>السؤال {currentIndex + 1} من {questions.length}</h2>
 
-      {question.type === "mcq" ? (
-        <McqQuestion key={question.id} question={question} onAnswer={handleAnswer} />
-      ) : (
-        <OrderQuestion key={question.id} question={question} onAnswer={handleAnswer} />
-      )}
-
+      <QuestionComponent key={question.id} question={question} onAnswer={handleAnswer} />
       {result !== null && (
         <div>
           <p>{result ? '✅ إجابة صحيحة' : '❌ إجابة خاطئة'}</p>

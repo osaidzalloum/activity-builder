@@ -11,6 +11,12 @@ const initialQuestions = [
   { id: "q2", type: "mcq", text: "ما عاصمة الأردن؟", options: ["إربد", "الزرقاء", "عمّان", "العقبة"], correctIndex: 2 },
   { id: "q3", type: "mcq", text: "كم عدد أيام الأسبوع؟", options: ["5", "6", "7", "8"], correctIndex: 2 },
   { id: "q4", type: "order", text: "رتّب مراحل دورة الماء", items: ["التبخر", "التكاثف", "الهطول", "الجريان"] },
+  { id: "q5", type: "match", text: "طابق كل دولة بعاصمتها", pairs: [
+    { left: "الأردن", right: "عمّان" },
+    { left: "مصر", right: "القاهرة" },
+    { left: "لبنان", right: "بيروت" },
+  ]
+},
 ];
 
 

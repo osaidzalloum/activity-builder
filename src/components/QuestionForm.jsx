@@ -1,46 +1,69 @@
 import { useState } from 'react';
+import OrderFields from './form/OrderFields';
+import McqFields from './form/McqFields';
+import MatchFields from './form/MatchFields';
+// فحص التكرار بمصفوفة نصوص (برا الـ component لأنها ما بتعتمد على state)
+function hasDuplicates(values) {
+    const trimmed = values.map((v) => v.trim());
+    return new Set(trimmed).size !== trimmed.length;
+}
+
 function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCancel }) {
+    const [type, setType] = useState(editingQuestion?.type ?? "mcq");
     const [text, setText] = useState(editingQuestion?.text ?? "");
     const [options, setOptions] = useState(editingQuestion?.options ?? ["", "", "", ""]);
     const [correctIndex, setCorrectIndex] = useState(editingQuestion?.correctIndex ?? 0);
+    const [items, setItems] = useState(editingQuestion?.items ?? ["", "", ""]);
+    const [pairs, setPairs] = useState(
+        editingQuestion?.pairs ?? [{ left: "", right: "" }, { left: "", right: "" }]
+    );
     const [error, setError] = useState("");
 
-    const [type, setType] = useState(editingQuestion?.type ?? "mcq");
-    const [items, setItems] = useState(editingQuestion?.items ?? ["", "", ""]);
 
-    function handleOptionChange(index, value) {
-        const newOptions = [...options];
-        newOptions[index] = value;
-        setOptions(newOptions);
-    }
-    function handleItemChange(index, value) {
-        const newItems = [...items];
-        newItems[index] = value;
-        setItems(newItems);
+
+    // ===== التحقق: بترجع رسالة الخطأ، أو null إذا كل اشي تمام =====
+    function validate() {
+        if (text.trim() === "") return "يرجى كتابة نص السؤال.";
+
+        if (type === "mcq") {
+            if (options.some((o) => o.trim() === "")) return "يرجى ملء جميع الخيارات.";
+            if (hasDuplicates(options)) return "لا يمكن تكرار نفس الخيار.";
+        }
+
+        if (type === "order") {
+            if (items.some((i) => i.trim() === "")) return "يرجى ملء جميع العناصر.";
+            if (hasDuplicates(items)) return "لا يمكن تكرار نفس العنصر.";
+        }
+
+        if (type === "match") {
+            const lefts = pairs.map((p) => p.left);
+            const rights = pairs.map((p) => p.right);
+            if ([...lefts, ...rights].some((v) => v.trim() === "")) return "يرجى ملء جميع الأزواج.";
+            if (hasDuplicates(lefts)) return "لا يمكن تكرار عنصر في العمود الأول.";
+            if (hasDuplicates(rights)) return "لا يمكن تكرار عنصر في العمود الثاني.";
+        }
+
+        return null;
     }
 
-    function addItem() {
-        setItems([...items, ""]);
+    // ===== بناء كائن السؤال حسب النوع =====
+    function buildData() {
+        if (type === "order") return { type, text, items };
+        if (type === "match") return { type, text, pairs };
+        return { type, text, options, correctIndex };
     }
 
-    function removeItem(index) {
-        setItems(items.filter((_, i) => i !== index));
-    }
-
-     function handleSubmit(e) {
+    function handleSubmit(e) {
         e.preventDefault();
 
-        const fields = type === "order" ? items : options;
-        if (text.trim() === "" || fields.some((f) => f.trim() === "")) {
-            setError("يرجى ملء جميع الحقول.");
+        const errorMessage = validate();
+        if (errorMessage) {
+            setError(errorMessage);
             return;
         }
         setError("");
 
-        const data = type === "order"
-            ? { type, text, items }
-            : { type, text, options, correctIndex };
-
+        const data = buildData();
         if (editingQuestion) {
             onUpdateQuestion({ ...editingQuestion, ...data });
         } else {
@@ -56,6 +79,7 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
                 <select value={type} onChange={(e) => setType(e.target.value)}>
                     <option value="mcq">اختيار من متعدد</option>
                     <option value="order">ترتيب</option>
+                    <option value="match">مطابقة</option>
                 </select>
             )}
 
@@ -64,50 +88,11 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
                 value={text}
                 onChange={(e) => setText(e.target.value)}
             />
-
-            {type === "mcq" ? (
-                options.map((opt, i) => (
-                    <div key={i} className="option-row">
-                        <input
-                            type="radio"
-                            name="correctOption"
-                            checked={correctIndex === i}
-                            onChange={() => setCorrectIndex(i)}
-                            aria-label={`تحديد الخيار ${i + 1} كإجابة صحيحة`}
-                        />
-                        <input
-                            value={opt}
-                            onChange={(e) => handleOptionChange(i, e.target.value)}
-                            placeholder={`الخيار ${i + 1}`}
-                        />
-                    </div>
-                ))
-            ) : (
-                <>
-                    <p className="hint">اكتب العناصر بالترتيب الصحيح، واللعبة بتخلطها للطالب.</p>
-                    {items.map((item, i) => (
-                        <div key={i} className="option-row">
-                            <span>{i + 1}.</span>
-                            <input
-                                value={item}
-                                onChange={(e) => handleItemChange(i, e.target.value)}
-                                placeholder={`العنصر ${i + 1}`}
-                            />
-                            <button
-                                type="button"
-                                className="btn btn-delete"
-                                onClick={() => removeItem(i)}
-                                disabled={items.length <= 2}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    ))}
-                    <button type="button" className="btn" onClick={addItem}>
-                        + إضافة عنصر
-                    </button>
-                </>
+            {type === "mcq" && (
+                <McqFields options={options} setOptions={setOptions} correctIndex={correctIndex} setCorrectIndex={setCorrectIndex} />
             )}
+            {type === "order" && <OrderFields items={items} setItems={setItems} />}
+            {type === "match" && <MatchFields pairs={pairs} setPairs={setPairs} />}
 
             {error && <p className="error">{error}</p>}
 
