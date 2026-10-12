@@ -40,6 +40,7 @@ An Arabic-first (RTL) web app for teachers to build interactive activities (mult
 - Cleaning up event listeners in `useEffect`
 
 ## Project Structure
+```
 src/
 ├── pages/ # BuilderPage (teacher) and PlayPage (student)
 ├── components/
@@ -50,7 +51,7 @@ src/
 │ ├── QuestionItem.jsx
 │ └── QuestionList.jsx
 └── utils/ # Shared helpers (shuffle)
-
+```
 ## Run Locally
 
 ```bash
