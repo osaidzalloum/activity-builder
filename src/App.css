@@ -73,6 +73,8 @@ button {
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .btn-primary { background: var(--primary); color: white; }
@@ -338,4 +340,14 @@ ol.options {
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
+}
+
+.form .actions {
+  margin-top: 12px;
+}
+.back-link {
+  display: inline-block;
+  color: var(--primary);
+  text-decoration: none;
+  margin-bottom: 12px;
 }

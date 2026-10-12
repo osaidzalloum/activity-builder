@@ -44,7 +44,7 @@ function BuilderPage({ questions, setQuestions }) {
     }
     return (
         <div>
-            <h1>منشئ الأنشطة</h1>
+            <h2>الأسئلة</h2>
             <QuestionList
                 questions={questions}
                 onDeleteQuestion={handleDeleteQuestion}
