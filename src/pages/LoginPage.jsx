@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function LoginPage() {
     const { signIn, signUp } = useAuth();
     const navigate = useNavigate();
-    
+    const location = useLocation();
     // state للإيميل، وكلمة السر، والخطأ، و submitting
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -26,7 +26,7 @@ function LoginPage() {
             setError(isLogin ? "الإيميل أو كلمة السر غير صحيحة." : error.message);
             return;
         }
-        navigate("/");
+        navigate(location.state?.from ?? "/");
 
 
     }

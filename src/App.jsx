@@ -7,6 +7,12 @@ import ActivityPage from './pages/ActivityPage';
 import { useAuth } from './context/AuthContext';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+import RequireAuth from './components/RequireAuth';
+
+
+
+
+
 const initialQuestions = [
   { id: "q1", type: "mcq", text: "ما ناتج 5 + 3؟", options: ["6", "8", "9", "7"], correctIndex: 1 },
   { id: "q2", type: "mcq", text: "ما عاصمة الأردن؟", options: ["إربد", "الزرقاء", "عمّان", "العقبة"], correctIndex: 2 },
@@ -61,7 +67,14 @@ function App() {
       </nav>
 
       <Routes>
-        <Route path="/" element={<BuilderPage questions={questions} setQuestions={setQuestions} />} />
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <BuilderPage questions={questions} setQuestions={setQuestions} />
+            </RequireAuth>
+          }
+        />
         <Route path="/play" element={<PlayPage questions={questions} />} />
         <Route path="/play/:activityId" element={<ActivityPage />} />
         <Route path="/login" element={<LoginPage />} />
