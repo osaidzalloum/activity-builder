@@ -66,7 +66,9 @@ src/
 │   ├── QuestionItem.jsx
 │   └── QuestionList.jsx
 ├── context/
-│   └── AuthContext.jsx      # Auth state and useAuth hook
+│   ├── AuthContext.js       # The context object
+│   ├── AuthProvider.jsx     # Session state and auth actions
+│   └── useAuth.js           # Hook to read auth state anywhere 
 ├── lib/
 │   └── supabase.js          # Supabase client
 └── utils/

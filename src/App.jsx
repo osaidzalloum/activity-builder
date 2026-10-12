@@ -1,12 +1,11 @@
 import './App.css';
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import RequireAuth from './components/RequireAuth';
 import DashboardPage from './pages/DashboardPage';
 import EditorPage from './pages/EditorPage';
 import ActivityPage from './pages/ActivityPage';
 import LoginPage from './pages/LoginPage';
-
 function App() {
   const { user, signOut } = useAuth();
 
