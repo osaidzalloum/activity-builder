@@ -3,7 +3,7 @@ import './App.css'
 import BuilderPage from './pages/BuilderPage';
 import PlayPage from './pages/PlayPage';
 import { useState, useEffect } from 'react';
-
+import ActivityPage from './pages/ActivityPage';
 
 import { Routes, Route, NavLink } from 'react-router-dom';
 const initialQuestions = [
@@ -40,6 +40,7 @@ function App() {
 
   return (
     <div dir="rtl" className="container">
+    
       <nav className="nav">
         <NavLink to="/" end>بناء الأسئلة</NavLink >
         <NavLink to="/play">حل النشاط</NavLink>
@@ -48,7 +49,9 @@ function App() {
       <Routes>
         <Route path="/" element={<BuilderPage questions={questions} setQuestions={setQuestions} />} />
         <Route path="/play" element={<PlayPage questions={questions} />} />
+        <Route path="/play/:activityId" element={<ActivityPage />} />
       </Routes>
+      
     </div>
   )
 
