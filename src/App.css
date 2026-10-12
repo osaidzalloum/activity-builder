@@ -330,3 +330,12 @@ ol.options {
 .form > div {
   margin-bottom: 12px;
 }
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
