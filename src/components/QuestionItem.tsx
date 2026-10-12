@@ -1,11 +1,17 @@
+import type { Question, QuestionType, McqQuestion, OrderQuestion, MatchQuestion } from '../types';
+type QuestionItemProps = {
+  question: Question;
+  onDeleteQuestion: (id: string) => void;
+  onEditQuestion: (question: Question) => void;
+};
 // أسماء الأنواع للشارة
-const typeLabels = {
+const typeLabels: Record<QuestionType, string> = {
   mcq: "اختيار من متعدد",
   order: "ترتيب",
   match: "مطابقة",
 };
 // معاينة لكل نوع
-function McqPreview({ question }) {
+function McqPreview({ question }: { question: McqQuestion }) {
   return (
     <ul className="options">
       {question.options.map((opt, i) => (
@@ -17,7 +23,7 @@ function McqPreview({ question }) {
   );
 }
 
-function OrderPreview({ question }) {
+function OrderPreview({ question }: { question: OrderQuestion }) {
   return (
     <ol className="options">
       {question.items.map((item, i) => (
@@ -27,7 +33,7 @@ function OrderPreview({ question }) {
   );
 }
 
-function MatchPreview({ question }) {
+function MatchPreview({ question }: { question: MatchQuestion }) {
   return (
     <ul className="options">
       {question.pairs.map((pair, i) => (
@@ -37,23 +43,26 @@ function MatchPreview({ question }) {
   );
 }
 
-const previews = {
-  mcq: McqPreview,
-  order: OrderPreview,
-  match: MatchPreview,
-};
 
-function QuestionItem({ question, onDeleteQuestion, onEditQuestion }) {
-
-  const PreviewComponent = previews[question.type];
+function renderPreview(question: Question) {
+  switch (question.type) {
+    case "mcq":
+      return <McqPreview question={question} />;
+    case "order":
+      return <OrderPreview question={question} />;
+    case "match":
+      return <MatchPreview question={question} />;
+  }
+}
+function QuestionItem({ question, onDeleteQuestion, onEditQuestion }: QuestionItemProps) {
 
   return (
     <div className="card">
       <span className="badge">
-        {typeLabels[question.type] ?? question.type}
+        {typeLabels[question.type]}
       </span>
       <h3>{question.text}</h3>
-      {PreviewComponent ? <PreviewComponent question={question} /> : <p>نوع غير مدعوم</p>}
+      {renderPreview(question)}
       <div className="actions">
         <button className="btn btn-delete" onClick={() => onDeleteQuestion(question.id)}>
           حذف
