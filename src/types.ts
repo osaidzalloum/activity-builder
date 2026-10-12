@@ -32,3 +32,8 @@ export type Activity = {
   questions: Question[];
   created_at: string;
 };
+
+export type PlayProps<Q extends Question> = {
+  question: Q;
+  onAnswer: (isCorrect: boolean) => void;
+};

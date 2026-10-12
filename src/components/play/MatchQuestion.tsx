@@ -1,23 +1,24 @@
 import { useState } from 'react';
 import shuffle from '../../utils/shuffle';
+import type { MatchQuestion as MatchQuestionType, PlayProps } from '../../types';
 
-function MatchQuestion({ question, onAnswer }) {
+function MatchQuestion({ question, onAnswer }: PlayProps<MatchQuestionType>) {
+    const [matches, setMatches] = useState<Record<string, string>>({});
+    const [activeLeft, setActiveLeft] = useState<string | null>(null);
     const [rightColumn] = useState(() => shuffle(question.pairs.map((p) => p.right)));
-    const [activeLeft, setActiveLeft] = useState(null);
-    const [matches, setMatches] = useState({});
     const [checked, setChecked] = useState(false);
 
     // هل كل العناصر انربطت؟ (قيمة مشتقة، مش state)
     const allMatched = Object.keys(matches).length === question.pairs.length;
 
-    function handleLeftClick(left) {
+    function handleLeftClick(left: string) {
         setActiveLeft(left);
     }
 
-    function handleRightClick(right) {
+    function handleRightClick(right: string) {
         if (activeLeft === null) return;
         setMatches((prev) => {
-            const next = {};
+            const next: Record<string, string> = {};
             for (const [left, r] of Object.entries(prev)) {
                 if (r !== right) next[left] = r;
             }
@@ -33,10 +34,10 @@ function MatchQuestion({ question, onAnswer }) {
         onAnswer(isCorrect);
     }
 
-    function getLeftClass(left) {
+    function getLeftClass(left: string) {
         if (checked) {
             const pair = question.pairs.find((p) => p.left === left);
-            return matches[left] === pair.right ? "match-item correct" : "match-item wrong";
+            return matches[left] === pair?.right ? "match-item correct" : "match-item wrong";
         }
         if (activeLeft === left) return "match-item active";
         if (matches[left] !== undefined) return "match-item matched";

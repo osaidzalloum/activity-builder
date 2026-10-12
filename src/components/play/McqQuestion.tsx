@@ -1,14 +1,15 @@
 import { useState } from 'react';
+import type { McqQuestion as McqQuestionType, PlayProps } from '../../types';
 
-function McqQuestion({ question, onAnswer }) {
-  const [selected, setSelected] = useState(null);
+function McqQuestion({ question, onAnswer }: PlayProps<McqQuestionType>) {
+  const [selected, setSelected] = useState<number | null>(null);  
 
-  function handleSelect(index) {
+  function handleSelect(index: number) {
     setSelected(index);
     onAnswer(index === question.correctIndex);
   }
 
-  function getOptionClass(index) {
+  function getOptionClass(index: number) {
     if (selected === null) return "play-option";
     if (index === question.correctIndex) return "play-option correct";
     if (index === selected) return "play-option wrong";
