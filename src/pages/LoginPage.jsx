@@ -13,6 +13,13 @@ function LoginPage() {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const isLogin = mode === "login";
+    function getSignUpError(error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes("rate limit")) return "محاولات كثيرة، حاول مرة ثانية بعد قليل.";
+        if (msg.includes("already registered")) return "هذا الإيميل مسجل مسبقاً. جرّب تسجيل الدخول.";
+        if (msg.includes("password")) return "كلمة السر لازم تكون 6 أحرف على الأقل.";
+        return "صار خطأ أثناء إنشاء الحساب. حاول مرة ثانية.";
+    }
     async function handleSubmit(e) {
         e.preventDefault();
         setError("");
@@ -23,7 +30,7 @@ function LoginPage() {
 
         setSubmitting(false);
         if (error) {
-            setError(isLogin ? "الإيميل أو كلمة السر غير صحيحة." : error.message);
+            setError(isLogin ? "الإيميل أو كلمة السر غير صحيحة." : getSignUpError(error));
             return;
         }
         navigate(location.state?.from ?? "/");
