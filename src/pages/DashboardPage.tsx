@@ -1,22 +1,26 @@
 import { useState, useEffect } from 'react';
+import type { Activity } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/useAuth';
-
+type ActivitySummary = Pick<Activity, "id" | "title" | "created_at">;
+type LoadStatus = "loading" | "ready" | "error";
 function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activities, setActivities] = useState([]);
-  const [status, setStatus] = useState("loading");
+  const [activities, setActivities] = useState<ActivitySummary[]>([]);
+  const [status, setStatus] = useState<LoadStatus>("loading");
 
   useEffect(() => {
     let ignore = false;
 
     async function load() {
+      if (!user) return;
+      const userId = user.id;
       const { data, error } = await supabase
         .from('activities')
         .select('id, title, created_at')
-        .eq('owner_id', user.id)
+        .eq('owner_id', userId)
         .order('created_at', { ascending: false });
 
       if (ignore) return;
@@ -31,7 +35,7 @@ function DashboardPage() {
 
     load();
     return () => { ignore = true; };
-  }, [user.id]);
+  }, [user]);
 
   async function handleCreate() {
     const { data, error } = await supabase
@@ -46,6 +50,17 @@ function DashboardPage() {
       return;
     }
     navigate(`/activities/${data.id}/edit`);
+  }
+  async function handleDelete(id: string) {
+    if (!confirm("متأكد بدك تحذف هذا النشاط؟ ما في تراجع.")) return;
+
+    const { error } = await supabase.from('activities').delete().eq('id', id);
+    if (error) {
+      console.error(error);
+      alert("صار خطأ أثناء حذف النشاط.");
+      return;
+    }
+    setActivities((current) => current.filter((a) => a.id !== id));
   }
 
   if (status === "loading") return <p>جاري التحميل...</p>;
@@ -65,20 +80,7 @@ function DashboardPage() {
             <div className="actions">
               <Link className="btn btn-primary" to={`/activities/${a.id}/edit`}>تعديل</Link>
               <Link className="btn" to={`/play/${a.id}`}>تجربة</Link>
-              <button className="btn btn-delete" onClick={async () => {
-                const { error } = await supabase
-                  .from('activities')
-                  .delete()
-                  .eq('id', a.id);
-                if (error) {
-                  console.error(error);
-                  alert("صار خطأ أثناء حذف النشاط.");
-                } else {
-                  setActivities(activities.filter((activity) => activity.id !== a.id));
-                }
-              }}>
-                حذف
-              </button>
+              <button className="btn btn-delete" onClick={() => handleDelete(a.id)}>حذف</button>
             </div>
           </div>
         ))

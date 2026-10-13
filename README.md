@@ -24,7 +24,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 
 ## Tech Stack
 
-- React (Vite)
+- React + TypeScript (Vite)
 - React Router
 - Supabase (PostgreSQL, Auth, Row Level Security)
 - dnd-kit (drag and drop)
@@ -38,41 +38,49 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Sharing auth state across the app with React Context and a custom hook
 - Handling async data fetching with loading, error, and not-found states, and avoiding race conditions
 - Designing components around a shared interface (`onAnswer`) so new question types plug in without changing the play page
-- Mapping question types to components with a lookup object instead of growing conditionals
+- Replacing a lookup object with an exhaustive switch, because TypeScript couldn't guarantee the looked-up component matched 
+  the question type
 - Lifting state up to share data between routes, and keeping state colocated where it is used
 - Resetting component state using the `key` prop instead of syncing with `useEffect`
 - Handling stale state (e.g. deleting a question while it is being edited)
 - Refactoring code structure without changing behavior
 - Building accessible drag and drop with keyboard and button alternatives
 - Cleaning up event listeners and subscriptions in `useEffect`
+- Modeling question types as a discriminated union so the compiler flags every place to update when a new type is added
+- Exhaustive checks with `never` in switch statements
+- Typing external data honestly: TypeScript protects the code, not data from the database (a case for runtime validation)
+- Migrating a JavaScript codebase to TypeScript incrementally without breaking the app
+- Code splitting with React.lazy and Suspense so each page loads only when visited
 
 ## Project Structure
 
 ```
 src/
+├── types.ts                 # Shared types: questions, activities, play props
+├── vite-env.d.ts            # Types for environment variables
 ├── pages/
-│   ├── DashboardPage.jsx    # Teacher's list of activities
-│   ├── EditorPage.jsx       # Loads, edits, and saves one activity
-│   ├── BuilderPage.jsx      # Question management UI (used by the editor)
-│   ├── ActivityPage.jsx     # Loads an activity from a shareable link
-│   ├── PlayPage.jsx         # Student play flow (used by the activity page)
-│   └── LoginPage.jsx
+│   ├── DashboardPage.tsx    # Teacher's list of activities
+│   ├── EditorPage.tsx       # Loads, edits, and saves one activity
+│   ├── BuilderPage.tsx      # Question management UI (used by the editor)
+│   ├── ActivityPage.tsx     # Loads an activity from a shareable link
+│   ├── PlayPage.tsx         # Student play flow (used by the activity page)
+│   └── LoginPage.tsx
 ├── components/
 │   ├── form/                # Form fields for each question type
 │   ├── play/                # Play components for each question type
-│   ├── Modal.jsx
-│   ├── RequireAuth.jsx      # Redirects to login for protected routes
-│   ├── QuestionForm.jsx
-│   ├── QuestionItem.jsx
-│   └── QuestionList.jsx
+│   ├── Modal.tsx
+│   ├── RequireAuth.tsx      # Redirects to login for protected routes
+│   ├── QuestionForm.tsx
+│   ├── QuestionItem.tsx
+│   └── QuestionList.tsx
 ├── context/
-│   ├── AuthContext.js       # The context object
-│   ├── AuthProvider.jsx     # Session state and auth actions
-│   └── useAuth.js           # Hook to read auth state anywhere 
+│   ├── AuthContext.ts       # The context object
+│   ├── AuthProvider.tsx     # Session state and auth actions
+│   └── useAuth.ts           # Hook to read auth state anywhere 
 ├── lib/
-│   └── supabase.js          # Supabase client
+│   └── supabase.ts          # Supabase client
 └── utils/
-    └── shuffle.js
+    └── shuffle.ts
 ```
 
 ## Run Locally
@@ -98,5 +106,6 @@ npm run dev
 - [x] Ordering questions with drag and drop
 - [x] Matching questions
 - [x] User accounts and shareable activity links (Supabase)
+- [x] TypeScript migration
 - [ ] Autosave in the editor
-- [ ] TypeScript migration
+- [ ] Runtime validation of database data (Zod)

@@ -1,16 +1,29 @@
 import { useState } from 'react';
+import type { Question } from '../types';
 import McqQuestion from '../components/play/McqQuestion';
 import OrderQuestion from '../components/play/OrderQuestion';
 import MatchQuestion from '../components/play/MatchQuestion';
-const questionComponents = {
-  mcq: McqQuestion,
-  order: OrderQuestion,
-  match: MatchQuestion,
+type PlayPageProps = {
+  questions: Question[];
 };
+function renderQuestion(question: Question, onAnswer: (isCorrect: boolean) => void) {
+  switch (question.type) {
+    case "mcq":
+      return <McqQuestion key={question.id} question={question} onAnswer={onAnswer} />;
+    case "order":
+      return <OrderQuestion key={question.id} question={question} onAnswer={onAnswer} />;
+    case "match":
+      return <MatchQuestion key={question.id} question={question} onAnswer={onAnswer} />;
+    default: {
+      const unhandled: never = question;
+      return unhandled;
+    }
+  }
+}
 
-function PlayPage({ questions }) {
+function PlayPage({ questions }: PlayPageProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
 
   if (questions.length === 0) {
@@ -34,11 +47,10 @@ function PlayPage({ questions }) {
   }
 
   const question = questions[currentIndex];
-  const QuestionComponent = questionComponents[question.type];
   const answered = currentIndex + (result !== null ? 1 : 0);
   const progress = (answered / questions.length) * 100;
 
-  function handleAnswer(isCorrect) {
+  function handleAnswer(isCorrect: boolean) {
     setResult(isCorrect);
     if (isCorrect) setScore((s) => s + 1);
   }
@@ -47,7 +59,8 @@ function PlayPage({ questions }) {
     setCurrentIndex((i) => i + 1);
     setResult(null);
   }
-  if (!QuestionComponent) {
+  const questionElement = renderQuestion(question, handleAnswer);
+  if (!questionElement) {
     return <p>نوع سؤال غير مدعوم: {question.type}</p>;
   }
   return (
@@ -57,7 +70,7 @@ function PlayPage({ questions }) {
       </div>
       <h2>السؤال {currentIndex + 1} من {questions.length}</h2>
 
-      <QuestionComponent key={question.id} question={question} onAnswer={handleAnswer} />
+      {questionElement}
       {result !== null && (
         <div>
           <p>{result ? '✅ إجابة صحيحة' : '❌ إجابة خاطئة'}</p>

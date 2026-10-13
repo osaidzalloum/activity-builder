@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';   
+import type { Question } from '../types';       // type
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import PlayPage from './PlayPage';
 
+type LoadStatus = "loading" | "ready" | "not-found" | "error";
 function ActivityPage() {
     // بتقرأ الجزء المتغير من الرابط: /play/abc123 → activityId = "abc123"
-    const { activityId } = useParams();
+    const { activityId } = useParams<{ activityId: string }>();
 
-    const [activity, setActivity] = useState(null);
-    const [status, setStatus] = useState("loading"); // loading | ready | not-found | error
+    const [activity, setActivity] = useState<{ title: string; questions: Question[] } | null>(null);
+    const [status, setStatus] = useState<LoadStatus>("loading");
 
     useEffect(() => {
         let ignore = false;
 
         async function load() {
-            const isUuid = /^[0-9a-f-]{36}$/i.test(activityId);
+            const isUuid = /^[0-9a-f-]{36}$/i.test(activityId || "");
             if (!isUuid) {
                 setStatus("not-found");
                 return;
@@ -34,7 +36,7 @@ function ActivityPage() {
             } else if (!data) {
                 setStatus("not-found");
             } else {
-                setActivity(data);
+                setActivity({ title: data.title, questions: data.questions as Question[] });
                 setStatus("ready");
             }
         }
@@ -45,7 +47,7 @@ function ActivityPage() {
 
     if (status === "loading") return <p>جاري التحميل...</p>;
     if (status === "not-found") return <p>النشاط غير موجود. تأكد من الرابط.</p>;
-    if (status === "error") return <p>صار خطأ أثناء تحميل النشاط. حاول مرة ثانية.</p>;
+    if (status === "error" || !activity) return <p>صار خطأ أثناء تحميل النشاط. حاول مرة ثانية.</p>;
 
     return (
         <>

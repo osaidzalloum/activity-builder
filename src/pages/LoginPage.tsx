@@ -1,41 +1,43 @@
-import { useState } from 'react';
-import { useAuth } from '../context/useAuth';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import type { AuthError } from '@supabase/supabase-js';
+import { useAuth } from '../context/useAuth';
+
+function getSignUpError(error: AuthError) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("rate limit")) return "محاولات كثيرة، حاول مرة ثانية بعد قليل.";
+    if (msg.includes("already registered")) return "هذا الإيميل مسجل مسبقاً. جرّب تسجيل الدخول.";
+    if (msg.includes("password")) return "كلمة السر لازم تكون 6 أحرف على الأقل.";
+    return "صار خطأ أثناء إنشاء الحساب. حاول مرة ثانية.";
+}
 
 function LoginPage() {
     const { signIn, signUp } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    // state للإيميل، وكلمة السر، والخطأ، و submitting
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [mode, setMode] = useState("login");
+    const [mode, setMode] = useState<"login" | "signup">("login");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
     const isLogin = mode === "login";
-    function getSignUpError(error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes("rate limit")) return "محاولات كثيرة، حاول مرة ثانية بعد قليل.";
-        if (msg.includes("already registered")) return "هذا الإيميل مسجل مسبقاً. جرّب تسجيل الدخول.";
-        if (msg.includes("password")) return "كلمة السر لازم تكون 6 أحرف على الأقل.";
-        return "صار خطأ أثناء إنشاء الحساب. حاول مرة ثانية.";
-    }
-    async function handleSubmit(e) {
+    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setError("");
         setSubmitting(true);
 
         const action = isLogin ? signIn : signUp;
-        const { error } = await action(email, password);
+        const { error: authError } = await action(email, password);
 
         setSubmitting(false);
-        if (error) {
-            setError(isLogin ? "الإيميل أو كلمة السر غير صحيحة." : getSignUpError(error));
+        if (authError) {
+            console.error(authError);
+            setError(isLogin ? "الإيميل أو كلمة السر غير صحيحة." : getSignUpError(authError));
             return;
         }
-        navigate(location.state?.from ?? "/");
-
-
+        navigate((location.state as { from?: string } | null)?.from ?? "/");
     }
 
     return (
