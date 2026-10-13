@@ -12,7 +12,7 @@ type TriviaResponse = {
 };
 
 export async function fetchTriviaQuestions(amount: number, signal?: AbortSignal): Promise<QuestionDraft[]> {
-  const url = `https://opentdb.com/api.php?amount=${amount}&type=multiple&encode=url3986`;
+  const url = `/api/trivia?amount=${amount}`;
 
   const response = await fetch(url, { signal });
 
