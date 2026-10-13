@@ -52,6 +52,10 @@ function renderPreview(question: Question) {
       return <OrderPreview question={question} />;
     case "match":
       return <MatchPreview question={question} />;
+    default: {
+      const unhandled: never = question;
+      return unhandled;
+    }
   }
 }
 function QuestionItem({ question, onDeleteQuestion, onEditQuestion }: QuestionItemProps) {

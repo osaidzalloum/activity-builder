@@ -1,5 +1,13 @@
-function McqFields({  options, setOptions, correctIndex, setCorrectIndex }) {
-    function handleOptionChange(index, value) {
+import type { Dispatch, SetStateAction } from 'react';
+type McqFieldsProps = {
+  options: string[];
+  setOptions: Dispatch<SetStateAction<string[]>>;
+  correctIndex: number;
+  setCorrectIndex: Dispatch<SetStateAction<number>>;
+};
+
+function McqFields({  options, setOptions, correctIndex, setCorrectIndex } : McqFieldsProps) {
+    function handleOptionChange(index: number, value: string) {
         const newOptions = [...options];
         newOptions[index] = value;
         setOptions(newOptions);

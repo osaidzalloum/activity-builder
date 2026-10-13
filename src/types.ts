@@ -23,6 +23,11 @@ export type MatchQuestion = BaseQuestion & {
 
 export type Question = McqQuestion | OrderQuestion | MatchQuestion;
 
+export type QuestionDraft =
+  | Omit<McqQuestion, "id">
+  | Omit<OrderQuestion, "id">
+  | Omit<MatchQuestion, "id">;
+  
 export type QuestionType = Question["type"];
 
 export type Activity = {

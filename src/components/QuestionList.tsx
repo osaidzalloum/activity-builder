@@ -1,6 +1,14 @@
 import QuestionItem from './QuestionItem';
+import type { Question } from '../types';
 
-function QuestionList({ questions, onDeleteQuestion, onEditQuestion }) {
+
+type QuestionListProps = {
+  questions: Question[];
+  onDeleteQuestion: (id: string) => void;
+  onEditQuestion: (question: Question) => void;
+};
+
+function QuestionList({ questions, onDeleteQuestion, onEditQuestion }: QuestionListProps) {
     if (questions.length === 0) {
     return <p>لا توجد أسئلة بعد</p>;
   }

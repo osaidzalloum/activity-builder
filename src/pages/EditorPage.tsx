@@ -1,22 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type SetStateAction } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/useAuth';
+import type { Question } from '../types';
 import BuilderPage from './BuilderPage';
 
+type LoadStatus = "loading" | "ready" | "not-found" | "forbidden" | "error";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
 function EditorPage() {
-    const { activityId } = useParams();
+    const { activityId } = useParams<{ activityId: string }>();
     const { user } = useAuth();
 
     const [title, setTitle] = useState("");
-    const [questions, setQuestions] = useState([]);
-    const [status, setStatus] = useState("loading"); // loading | ready | not-found | forbidden | error
-    const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved | error
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [status, setStatus] = useState<LoadStatus>("loading");
+    const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
     const [copied, setCopied] = useState(false);
     const [dirty, setDirty] = useState(false);
 
     useEffect(() => {
+        if (!activityId || !user) return;
+        const userId = user.id;
         let ignore = false;
+
 
         async function load() {
             const { data, error } = await supabase
@@ -31,23 +38,23 @@ function EditorPage() {
                 setStatus("error");
             } else if (!data) {
                 setStatus("not-found");
-            } else if (data.owner_id !== user.id) {
+            } else if (data.owner_id !== userId) {   // ← userId بدل user.id
                 setStatus("forbidden");
             } else {
                 setTitle(data.title);
-                setQuestions(data.questions);
+                setQuestions(data.questions as Question[]);
                 setStatus("ready");
             }
         }
 
         load();
         return () => { ignore = true; };
-    }, [activityId, user.id]);
+    }, [activityId, user]);
 
     useEffect(() => {
         if (!dirty) return;
 
-        function handleBeforeUnload(e) {
+        function handleBeforeUnload(e: BeforeUnloadEvent) {
             e.preventDefault();
             e.returnValue = "";
         }
@@ -55,7 +62,18 @@ function EditorPage() {
         return () => window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [dirty]);
 
+    function markChanged() {
+        setSaveStatus("idle");
+        setDirty(true);
+    }
+
+    function handleQuestionsChange(updater: SetStateAction<Question[]>) {
+        setQuestions(updater);
+        markChanged();
+    }
+
     async function handleSave() {
+        if (!activityId) return;
         setSaveStatus("saving");
         const { data, error } = await supabase
             .from('activities')
@@ -78,11 +96,6 @@ function EditorPage() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     }
-    function handleQuestionsChange(updater) {
-        setQuestions(updater);
-        setSaveStatus("idle");
-        setDirty(true);
-    }
 
     if (status === "loading") return <p>جاري التحميل...</p>;
     if (status === "not-found") return <p>النشاط غير موجود.</p>;
@@ -98,7 +111,7 @@ function EditorPage() {
                 <input
                     id="title"
                     value={title}
-                    onChange={(e) => { setTitle(e.target.value); setSaveStatus("idle"); }}
+                    onChange={(e) => { setTitle(e.target.value); markChanged(); }}
                 />
                 <div className="actions">
                     <button className="btn btn-primary" onClick={handleSave} disabled={saveStatus === "saving"}>
@@ -109,7 +122,7 @@ function EditorPage() {
                     </button>
                     {saveStatus === "saved" && <span className="hint">✓ تم الحفظ</span>}
                     {saveStatus === "error" && <span className="error">فشل الحفظ</span>}
-                    {dirty && <span className="hint">● تغييرات غير محفوظة</span>}   {/* ← هون */}
+                    {dirty && <span className="hint">● تغييرات غير محفوظة</span>}
                 </div>
             </div>
 

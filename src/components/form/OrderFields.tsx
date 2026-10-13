@@ -1,5 +1,11 @@
-function OrderFields({ items, setItems }) {
-    function handleItemChange(index, value) {
+import type { Dispatch, SetStateAction } from 'react';
+type OrderFieldsProps = {
+    items: string[];
+    setItems: Dispatch<SetStateAction<string[]>>;
+};
+function OrderFields({ items, setItems }: OrderFieldsProps) {
+
+    function handleItemChange(index: number, value: string) {
         const newItems = [...items];
         newItems[index] = value;
         setItems(newItems);
@@ -9,7 +15,7 @@ function OrderFields({ items, setItems }) {
         setItems([...items, ""]);
     }
 
-    function removeItem(index) {
+    function removeItem(index: number) {
         setItems(items.filter((_, i) => i !== index));
     }
 

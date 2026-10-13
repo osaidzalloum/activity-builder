@@ -1,5 +1,12 @@
-function MatchFields({ pairs, setPairs }) {
-    function handlePairChange(index, side, value) {
+import type { Dispatch, SetStateAction } from 'react';
+import type { MatchPair } from '../../types';
+type MatchFieldsProps = {
+    pairs: MatchPair[];
+    setPairs: Dispatch<SetStateAction<MatchPair[]>>;
+};
+
+function MatchFields({ pairs, setPairs }: MatchFieldsProps) {
+    function handlePairChange(index: number, side: 'left' | 'right', value: string) {
         setPairs(pairs.map((p, i) => (i === index ? { ...p, [side]: value } : p)));
     }
 
@@ -7,7 +14,7 @@ function MatchFields({ pairs, setPairs }) {
         setPairs([...pairs, { left: "", right: "" }]);
     }
 
-    function removePair(index) {
+    function removePair(index: number) {
         setPairs(pairs.filter((_, i) => i !== index));
     }
     return (

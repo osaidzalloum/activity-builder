@@ -1,13 +1,19 @@
+
 import QuestionList from '../components/QuestionList';
 import QuestionForm from '../components/QuestionForm';
 import Modal from '../components/Modal';
 
-import { useState } from 'react';
-function BuilderPage({ questions, setQuestions }) {
+import { useState, type Dispatch, type SetStateAction } from 'react';
+import type { Question, QuestionDraft } from '../types';
+type BuilderPageProps = {
+    questions: Question[];
+    setQuestions: Dispatch<SetStateAction<Question[]>>;
+};
+function BuilderPage({ questions, setQuestions }: BuilderPageProps) {
 
-    const [editingQuestion, setEditingQuestion] = useState(null);
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
-    function handleDeleteQuestion(id) {
+    function handleDeleteQuestion(id: string) {
         setQuestions((currentQuestions) =>
             currentQuestions.filter((question) => question.id !== id)
         );
@@ -16,12 +22,12 @@ function BuilderPage({ questions, setQuestions }) {
         }
     }
 
-    function handleAddQuestion(question) {
-        setQuestions((current) => [...current, { ...question, id: crypto.randomUUID() }]);
+    function handleAddQuestion(draft: QuestionDraft) {
+        setQuestions((current) => [...current, { ...draft, id: crypto.randomUUID() }]);
         closeForm();
     }
 
-    function handleUpdateQuestion(updated) {
+    function handleUpdateQuestion(updated: Question) {
         setQuestions((current) =>
             current.map((q) => (q.id === updated.id ? updated : q))
         );
@@ -33,7 +39,7 @@ function BuilderPage({ questions, setQuestions }) {
         setIsFormOpen(true);
     }
 
-    function openEditForm(question) {
+    function openEditForm(question: Question) {
         setEditingQuestion(question);
         setIsFormOpen(true);
     }
