@@ -21,6 +21,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Student mode: one question at a time, instant feedback, progress bar, and final score
 - Shuffled ordering items, guaranteed never to start in the correct order
 - Full RTL support for Arabic
+- Import ready-made questions from Open Trivia DB through a serverless API route
 
 ## Tech Stack
 
@@ -51,10 +52,15 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Typing external data honestly: TypeScript protects the code, not data from the database (a case for runtime validation)
 - Migrating a JavaScript codebase to TypeScript incrementally without breaking the app
 - Code splitting with React.lazy and Suspense so each page loads only when visited
+- Keeping secret API keys off the client by proxying requests through a Vercel serverless function
 
 ## Project Structure
 
 ```
+api/
+└── trivia.ts                # Serverless function proxying the trivia API
+supabase/
+└── schema.sql               # Database table and RLS policies
 src/
 ├── types.ts                 # Shared types: questions, activities, play props
 ├── vite-env.d.ts            # Types for environment variables
@@ -78,7 +84,8 @@ src/
 │   ├── AuthProvider.tsx     # Session state and auth actions
 │   └── useAuth.ts           # Hook to read auth state anywhere 
 ├── lib/
-│   └── supabase.ts          # Supabase client
+│   ├── supabase.ts          # Supabase client
+│   └── trivia.ts            # Fetches and maps trivia questions
 └── utils/
     └── shuffle.ts
 ```
@@ -98,6 +105,13 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```bash
 npm install
 npm run dev
+```
+
+To run the API routes locally (used by question import), use the Vercel CLI instead:
+
+```bash
+npm install -g vercel
+vercel dev
 ```
 
 ## Roadmap
