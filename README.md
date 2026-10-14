@@ -49,7 +49,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Cleaning up event listeners and subscriptions in `useEffect`
 - Modeling question types as a discriminated union so the compiler flags every place to update when a new type is added
 - Exhaustive checks with `never` in switch statements
-- Typing external data honestly: TypeScript protects the code, not data from the database (a case for runtime validation)
+- Validating database data at runtime with Zod, and deriving TypeScript types from the same schemas so there is one source of truth
 - Migrating a JavaScript codebase to TypeScript incrementally without breaking the app
 - Code splitting with React.lazy and Suspense so each page loads only when visited
 - Keeping secret API keys off the client by proxying requests through a Vercel serverless function

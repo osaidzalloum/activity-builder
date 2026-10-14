@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';   
-import type { Question } from '../types';       // type
+import { useEffect, useState } from 'react';
+import type { Question } from '../types'; 
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import PlayPage from './PlayPage';
+import { questionsSchema } from '../schemas';
 
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
 function ActivityPage() {
-    // بتقرأ الجزء المتغير من الرابط: /play/abc123 → activityId = "abc123"
     const { activityId } = useParams<{ activityId: string }>();
 
     const [activity, setActivity] = useState<{ title: string; questions: Question[] } | null>(null);
@@ -36,7 +36,13 @@ function ActivityPage() {
             } else if (!data) {
                 setStatus("not-found");
             } else {
-                setActivity({ title: data.title, questions: data.questions as Question[] });
+                const parsed = questionsSchema.safeParse(data.questions);
+                if (!parsed.success) {
+                    console.error(parsed.error);
+                    setStatus("error");
+                    return;
+                }
+                setActivity({ title: data.title, questions: parsed.data });
                 setStatus("ready");
             }
         }

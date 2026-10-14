@@ -1,33 +1,26 @@
+import type { z } from 'zod';
+import type {
+  mcqQuestionSchema, orderQuestionSchema, matchQuestionSchema,
+  matchPairSchema, questionSchema,
+} from './schemas';
+
+
+export type McqQuestion = z.infer<typeof mcqQuestionSchema>;
+export type OrderQuestion = z.infer<typeof orderQuestionSchema>;
+export type MatchQuestion = z.infer<typeof matchQuestionSchema>;
+export type MatchPair = z.infer<typeof matchPairSchema>;
+export type Question = z.infer<typeof questionSchema>;
+
 type BaseQuestion = {
   id: string;
   text: string;
 };
 
-export type McqQuestion = BaseQuestion & {
-  type: "mcq";
-  options: string[];
-  correctIndex: number;
-};
-
-export type OrderQuestion = BaseQuestion & {
-  type: "order";
-  items: string[];
-};
-
-export type MatchPair = { left: string; right: string };
-
-export type MatchQuestion = BaseQuestion & {
-  type: "match";
-  pairs: MatchPair[];
-};
-
-export type Question = McqQuestion | OrderQuestion | MatchQuestion;
-
 export type QuestionDraft =
   | Omit<McqQuestion, "id">
   | Omit<OrderQuestion, "id">
   | Omit<MatchQuestion, "id">;
-  
+
 export type QuestionType = Question["type"];
 
 export type Activity = {

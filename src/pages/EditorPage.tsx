@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/useAuth';
 import type { Question } from '../types';
 import BuilderPage from './BuilderPage';
+import { questionsSchema } from '../schemas';
 
 type LoadStatus = "loading" | "ready" | "not-found" | "forbidden" | "error";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -38,12 +39,18 @@ function EditorPage() {
                 setStatus("error");
             } else if (!data) {
                 setStatus("not-found");
-            } else if (data.owner_id !== userId) {   // ← userId بدل user.id
+            } else if (data.owner_id !== userId) {  
                 setStatus("forbidden");
-            } else {
+            } else {                
+                const parsed = questionsSchema.safeParse(data.questions);
+                if (!parsed.success) {
+                    console.error(parsed.error);
+                    setStatus("error");
+                    return;
+                }
                 setTitle(data.title);
-                setQuestions(data.questions as Question[]);
-                setStatus("ready");
+                setQuestions(parsed.data);
+                setStatus("ready");                
             }
         }
 
