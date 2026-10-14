@@ -13,7 +13,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Activities stored in PostgreSQL and shared through a unique link
 - Row Level Security: anyone can view an activity, only its owner can edit or delete it
 - Protected routes with redirect back to the requested page after login
-- Unsaved changes indicator and warning before leaving the editor
+- Autosave with debounce, plus an unsaved changes indicator and warning before leaving
 - Drag-and-drop ordering with keyboard and button alternatives for accessibility
 - Create, edit, and delete questions in a reusable modal form (closes on Escape or backdrop click)
 - Dynamic form fields: add and remove ordering items and matching pairs on the fly
@@ -53,6 +53,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Migrating a JavaScript codebase to TypeScript incrementally without breaking the app
 - Code splitting with React.lazy and Suspense so each page loads only when visited
 - Keeping secret API keys off the client by proxying requests through a Vercel serverless function
+- Debouncing autosave with useEffect cleanup, and using a ref-based revision counter to avoid losing edits made during a save
 
 ## Project Structure
 
@@ -121,5 +122,5 @@ vercel dev
 - [x] Matching questions
 - [x] User accounts and shareable activity links (Supabase)
 - [x] TypeScript migration
-- [ ] Autosave in the editor
-- [ ] Runtime validation of database data (Zod)
+- [x] Autosave in the editor
+- [x] Runtime validation of database data (Zod)

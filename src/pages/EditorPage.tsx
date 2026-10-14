@@ -1,10 +1,11 @@
-import { useState, useEffect, type SetStateAction } from 'react';
+import { useState, useEffect, useRef, type SetStateAction } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/useAuth';
 import type { Question } from '../types';
 import BuilderPage from './BuilderPage';
 import { questionsSchema } from '../schemas';
+
 
 type LoadStatus = "loading" | "ready" | "not-found" | "forbidden" | "error";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -19,6 +20,8 @@ function EditorPage() {
     const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
     const [copied, setCopied] = useState(false);
     const [dirty, setDirty] = useState(false);
+    const revisionRef = useRef(0);
+
 
     useEffect(() => {
         if (!activityId || !user) return;
@@ -39,9 +42,9 @@ function EditorPage() {
                 setStatus("error");
             } else if (!data) {
                 setStatus("not-found");
-            } else if (data.owner_id !== userId) {  
+            } else if (data.owner_id !== userId) {
                 setStatus("forbidden");
-            } else {                
+            } else {
                 const parsed = questionsSchema.safeParse(data.questions);
                 if (!parsed.success) {
                     console.error(parsed.error);
@@ -50,7 +53,7 @@ function EditorPage() {
                 }
                 setTitle(data.title);
                 setQuestions(parsed.data);
-                setStatus("ready");                
+                setStatus("ready");
             }
         }
 
@@ -69,9 +72,18 @@ function EditorPage() {
         return () => window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [dirty]);
 
+    useEffect(() => {
+        if (!dirty) return;
+        const timer = setTimeout(() => {
+            handleSave();
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, [title, questions, dirty]);
+
     function markChanged() {
+        revisionRef.current += 1;
         setSaveStatus("idle");
-        setDirty(true);
+        setDirty(true);        
     }
 
     function handleQuestionsChange(updater: SetStateAction<Question[]>) {
@@ -81,6 +93,7 @@ function EditorPage() {
 
     async function handleSave() {
         if (!activityId) return;
+        const savingRevision = revisionRef.current;
         setSaveStatus("saving");
         const { data, error } = await supabase
             .from('activities')
@@ -93,8 +106,10 @@ function EditorPage() {
             setSaveStatus("error");
             return;
         }
-        setSaveStatus("saved");
-        setDirty(false);
+        if (revisionRef.current === savingRevision) {
+            setSaveStatus("saved");
+            setDirty(false);
+        }
     }
 
     async function handleCopyLink() {
