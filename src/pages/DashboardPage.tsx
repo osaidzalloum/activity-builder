@@ -80,6 +80,7 @@ function DashboardPage() {
             <div className="actions">
               <Link className="btn btn-primary" to={`/activities/${a.id}/edit`}>تعديل</Link>
               <Link className="btn" to={`/play/${a.id}`}>تجربة</Link>
+              <Link className="btn" to={`/activities/${a.id}/results`}>النتائج</Link>
               <button className="btn btn-delete" onClick={() => handleDelete(a.id)}>حذف</button>
             </div>
           </div>
