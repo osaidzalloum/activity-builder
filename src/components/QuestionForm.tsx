@@ -14,18 +14,18 @@ type QuestionFormProps = {
 const emptyPairs: MatchPair[] = [{ left: "", right: "" }, { left: "", right: "" }];
 
 function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCancel }: QuestionFormProps) {
-    const [type, setType] = useState <QuestionType> (editingQuestion?.type ?? "mcq");
+    const [type, setType] = useState<QuestionType>(editingQuestion?.type ?? "mcq");
     const [text, setText] = useState(editingQuestion?.text ?? "");
-    const [options, setOptions] = useState <string[]> (
+    const [options, setOptions] = useState<string[]>(
         editingQuestion?.type === "mcq" ? editingQuestion.options : ["", "", "", ""]
     );
     const [correctIndex, setCorrectIndex] = useState(
         editingQuestion?.type === "mcq" ? editingQuestion.correctIndex : 0
     );
-    const [items, setItems] = useState <string[]> (
+    const [items, setItems] = useState<string[]>(
         editingQuestion?.type === "order" ? editingQuestion.items : ["", "", ""]
     );
-    const [pairs, setPairs] = useState <MatchPair[]> (
+    const [pairs, setPairs] = useState<MatchPair[]>(
         editingQuestion?.type === "match" ? editingQuestion.pairs : emptyPairs
     );
     const [error, setError] = useState("");
@@ -37,7 +37,7 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
         return { type, text, options, correctIndex };
     }
 
-     function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
 
         const data = buildData();
