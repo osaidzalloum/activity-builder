@@ -1,5 +1,7 @@
 # Activity Builder | منشئ الأنشطة
 
+![CI](https://github.com/osaidzalloum/activity-builder/actions/workflows/ci.yml/badge.svg)
+
 An Arabic-first (RTL) platform where teachers create interactive activities (multiple choice, ordering, and matching) and share them with students via a link. Students solve them with instant feedback, no account needed.
 
 🔗 **Live demo:** https://activity-builder-chi.vercel.app/
@@ -28,7 +30,10 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - React + TypeScript (Vite)
 - React Router
 - Supabase (PostgreSQL, Auth, Row Level Security)
+- Zod (runtime validation)
 - dnd-kit (drag and drop)
+- Vitest + React Testing Library
+- GitHub Actions (CI)
 - CSS with custom properties
 - Deployed on Vercel
 
@@ -39,8 +44,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Sharing auth state across the app with React Context and a custom hook
 - Handling async data fetching with loading, error, and not-found states, and avoiding race conditions
 - Designing components around a shared interface (`onAnswer`) so new question types plug in without changing the play page
-- Replacing a lookup object with an exhaustive switch, because TypeScript couldn't guarantee the looked-up component matched 
-  the question type
+- Replacing a lookup object with an exhaustive switch, because TypeScript couldn't guarantee the looked-up component matched the question type
 - Lifting state up to share data between routes, and keeping state colocated where it is used
 - Resetting component state using the `key` prop instead of syncing with `useEffect`
 - Handling stale state (e.g. deleting a question while it is being edited)
@@ -54,16 +58,23 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Code splitting with React.lazy and Suspense so each page loads only when visited
 - Keeping secret API keys off the client by proxying requests through a Vercel serverless function
 - Debouncing autosave with useEffect cleanup, and using a ref-based revision counter to avoid losing edits made during a save
+- Extracting logic into pure functions to make it testable, and unit testing it with Vitest
+- Testing components the way users use them with React Testing Library (roles, clicks, and accessible names)
+- Running type checks, tests, and builds on every push with GitHub Actions
 
 ## Project Structure
 
 ```
+.github/
+└── workflows/
+    └── ci.yml               # Type check, tests, and build on every push
 api/
 └── trivia.ts                # Serverless function proxying the trivia API
 supabase/
 └── schema.sql               # Database table and RLS policies
 src/
 ├── types.ts                 # Shared types: questions, activities, play props
+├── schemas.ts               # Zod schemas (source of truth for question types)
 ├── vite-env.d.ts            # Types for environment variables
 ├── pages/
 │   ├── DashboardPage.tsx    # Teacher's list of activities
@@ -84,11 +95,15 @@ src/
 │   ├── AuthContext.ts       # The context object
 │   ├── AuthProvider.tsx     # Session state and auth actions
 │   └── useAuth.ts           # Hook to read auth state anywhere 
+├── test/
+│   └── setup.ts             # Test setup (jest-dom matchers, cleanup)
 ├── lib/
 │   ├── supabase.ts          # Supabase client
 │   └── trivia.ts            # Fetches and maps trivia questions
 └── utils/
-    └── shuffle.ts
+    ├── shuffle.ts
+    └── validateQuestion.ts  # Pure validation logic, unit tested
+    
 ```
 
 ## Run Locally
@@ -115,6 +130,12 @@ npm install -g vercel
 vercel dev
 ```
 
+Run the tests:
+
+```bash
+npm test
+```
+
 ## Roadmap
 
 - [x] Multiple choice questions
@@ -124,3 +145,6 @@ vercel dev
 - [x] TypeScript migration
 - [x] Autosave in the editor
 - [x] Runtime validation of database data (Zod)
+- [ ] Student results and per-question statistics for teachers
+- [ ] Reorder questions with drag and drop in the editor
+- [ ] Tests for ordering and matching questions
