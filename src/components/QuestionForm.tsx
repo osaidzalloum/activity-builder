@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { Question, QuestionDraft, QuestionType, MatchPair } from '../types';
+import { validateQuestion } from '../utils/validateQuestion';
 import OrderFields from './form/OrderFields';
 import McqFields from './form/McqFields';
 import MatchFields from './form/MatchFields';
@@ -10,11 +11,6 @@ type QuestionFormProps = {
     onUpdateQuestion: (question: Question) => void;
     onCancel: () => void;
 };
-// فحص التكرار بمصفوفة نصوص (برا الـ component لأنها ما بتعتمد على state)
-function hasDuplicates(values: string[]) {
-    const trimmed = values.map((v) => v.trim());
-    return new Set(trimmed).size !== trimmed.length;
-}
 const emptyPairs: MatchPair[] = [{ left: "", right: "" }, { left: "", right: "" }];
 
 function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCancel }: QuestionFormProps) {
@@ -34,33 +30,6 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
     );
     const [error, setError] = useState("");
 
-
-
-    // ===== التحقق: بترجع رسالة الخطأ، أو null إذا كل اشي تمام =====
-    function validate() {
-        if (text.trim() === "") return "يرجى كتابة نص السؤال.";
-
-        if (type === "mcq") {
-            if (options.some((o) => o.trim() === "")) return "يرجى ملء جميع الخيارات.";
-            if (hasDuplicates(options)) return "لا يمكن تكرار نفس الخيار.";
-        }
-
-        if (type === "order") {
-            if (items.some((i) => i.trim() === "")) return "يرجى ملء جميع العناصر.";
-            if (hasDuplicates(items)) return "لا يمكن تكرار نفس العنصر.";
-        }
-
-        if (type === "match") {
-            const lefts = pairs.map((p) => p.left);
-            const rights = pairs.map((p) => p.right);
-            if ([...lefts, ...rights].some((v) => v.trim() === "")) return "يرجى ملء جميع الأزواج.";
-            if (hasDuplicates(lefts)) return "لا يمكن تكرار عنصر في العمود الأول.";
-            if (hasDuplicates(rights)) return "لا يمكن تكرار عنصر في العمود الثاني.";
-        }
-
-        return null;
-    }
-
     // ===== بناء كائن السؤال حسب النوع =====
     function buildData(): QuestionDraft {
         if (type === "order") return { type, text, items };
@@ -68,17 +37,17 @@ function QuestionForm({ editingQuestion, onAddQuestion, onUpdateQuestion, onCanc
         return { type, text, options, correctIndex };
     }
 
-    function handleSubmit(e: FormEvent<HTMLFormElement>) {
+     function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
 
-        const errorMessage = validate();
+        const data = buildData();
+        const errorMessage = validateQuestion(data);
         if (errorMessage) {
             setError(errorMessage);
             return;
         }
         setError("");
 
-        const data = buildData();
         if (editingQuestion) {
             onUpdateQuestion({ ...data, id: editingQuestion.id });
         } else {
