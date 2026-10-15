@@ -32,4 +32,19 @@ export const questionSchema = z.discriminatedUnion("type", [
   matchQuestionSchema,
 ]);
 
+export const attemptAnswerSchema = z.object({
+  questionId: z.string(),
+  correct: z.boolean(),
+});
+
+export const attemptSchema = z.object({
+  id: z.string(),
+  student_name: z.string(),
+  score: z.number(),
+  total: z.number(),
+  answers: z.array(attemptAnswerSchema),
+  created_at: z.string(),
+});
+
 export const questionsSchema = z.array(questionSchema);
+export const attemptsSchema = z.array(attemptSchema);

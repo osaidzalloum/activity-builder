@@ -2,17 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/useAuth';
-import { questionsSchema } from '../schemas';
-import type { Question } from '../types';
-
-type Attempt = {
-  id: string;
-  student_name: string;
-  score: number;
-  total: number;
-  answers: boolean[];
-  created_at: string;
-};
+import { questionsSchema, attemptsSchema } from '../schemas';
+import type { Question, Attempt } from '../types';
 
 type LoadStatus = "loading" | "ready" | "not-found" | "forbidden" | "error";
 
@@ -45,16 +36,17 @@ function ResultsPage() {
       if (!activityRes.data) return setStatus("not-found");
       if (activityRes.data.owner_id !== userId) return setStatus("forbidden");
 
-      const parsed = questionsSchema.safeParse(activityRes.data.questions);
-      if (!parsed.success) {
-        console.error(parsed.error);
+      const parsedQuestions = questionsSchema.safeParse(activityRes.data.questions);
+      const parsedAttempts = attemptsSchema.safeParse(attemptsRes.data);
+      if (!parsedQuestions.success || !parsedAttempts.success) {
+        console.error(parsedQuestions.error ?? parsedAttempts.error);
         setStatus("error");
         return;
       }
 
       setTitle(activityRes.data.title);
-      setQuestions(parsed.data);
-      setAttempts(attemptsRes.data as Attempt[]);
+      setQuestions(parsedQuestions.data);
+      setAttempts(parsedAttempts.data);
       setStatus("ready");
     }
 
@@ -71,13 +63,19 @@ function ResultsPage() {
   const averagePercent = attempts.length === 0
     ? 0
     : Math.round(
-        (attempts.reduce((sum, a) => sum + a.score / a.total, 0) / attempts.length) * 100
-      );
+      (attempts.reduce((sum, a) => sum + a.score / a.total, 0) / attempts.length) * 100
+    );
 
-  const questionStats = questions.map((q, i) => {
-    const correct = attempts.filter((a) => a.answers[i] === true).length;
-    const percent = attempts.length === 0 ? 0 : Math.round((correct / attempts.length) * 100);
-    return { question: q, percent };
+  const questionStats = questions.map((q) => {
+    const answersForQuestion = attempts
+      .map((a) => a.answers.find((ans) => ans.questionId === q.id))
+      .filter((ans) => ans !== undefined);
+    const correct = answersForQuestion.filter((ans) => ans.correct).length;   
+    const percent = answersForQuestion.length === 0
+      ? 0
+      : Math.round((correct / answersForQuestion.length) * 100);
+
+    return { question: q, percent, count: answersForQuestion.length };
   });
 
   return (
@@ -95,13 +93,13 @@ function ResultsPage() {
           </div>
 
           <h2>الأسئلة</h2>
-          {questionStats.map(({ question, percent }) => (
+          {questionStats.map(({ question, percent, count }) => (
             <div key={question.id} className="card">
               <p>{question.text}</p>
               <div className="progress">
                 <div className="progress-fill" style={{ width: `${percent}%` }} />
               </div>
-              <p className="hint">{percent}% جاوبوا صح</p>
+              <p className="hint">{percent}% جاوبوا صح (من {count} طالب)</p>
             </div>
           ))}
 

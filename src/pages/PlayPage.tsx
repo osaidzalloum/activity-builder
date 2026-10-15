@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Question, AttemptResult } from '../types';
+import type { Question, AttemptResult, AttemptAnswer } from '../types';
 import McqQuestion from '../components/play/McqQuestion';
 import OrderQuestion from '../components/play/OrderQuestion';
 import MatchQuestion from '../components/play/MatchQuestion';
@@ -26,9 +26,9 @@ function renderQuestion(question: Question, onAnswer: (isCorrect: boolean) => vo
 function PlayPage({ questions ,onFinish  }: PlayPageProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [result, setResult] = useState<boolean | null>(null);
-  const [answers, setAnswers] = useState<boolean[]>([]);
+  const [answers, setAnswers] = useState<AttemptAnswer[]>([]);
 
-  const score = answers.filter(Boolean).length;
+  const score = answers.filter((a) => a.correct).length;
   if (questions.length === 0) {
     return <p>لا توجد أسئلة بعد. أضف أسئلة من صفحة البناء.</p>;
   }
@@ -55,7 +55,7 @@ function PlayPage({ questions ,onFinish  }: PlayPageProps) {
 
   function handleAnswer(isCorrect: boolean) {
     setResult(isCorrect);
-    setAnswers((current) => [...current, isCorrect]);
+    setAnswers((current) => [...current, { questionId: question.id, correct: isCorrect }]);
   }
 
   function handleNext() {
