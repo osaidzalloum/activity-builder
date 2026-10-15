@@ -24,6 +24,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Shuffled ordering items, guaranteed never to start in the correct order
 - Full RTL support for Arabic
 - Import ready-made questions from Open Trivia DB through a serverless API route
+- Student results: students enter a name, attempts are saved, and teachers see scores, averages, and per-question success rates
 
 ## Tech Stack
 
@@ -61,6 +62,10 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Extracting logic into pure functions to make it testable, and unit testing it with Vitest
 - Testing components the way users use them with React Testing Library (roles, clicks, and accessible names)
 - Running type checks, tests, and builds on every push with GitHub Actions
+- Relating tables with foreign keys and cascade deletes, and enforcing data rules with check constraints in the database
+- Writing RLS policies across related tables: anyone can submit an attempt, only the activity owner can read it
+- Avoiding insert().select() when the user can write but not read a row under RLS
+- Fetching independent data in parallel with Promise.all
 
 ## Project Structure
 
@@ -71,7 +76,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 api/
 └── trivia.ts                # Serverless function proxying the trivia API
 supabase/
-└── schema.sql               # Database table and RLS policies
+└── schema.sql               # Tables (activities, attempts) and RLS policies
 src/
 ├── types.ts                 # Shared types: questions, activities, play props
 ├── schemas.ts               # Zod schemas (source of truth for question types)
@@ -82,6 +87,7 @@ src/
 │   ├── BuilderPage.tsx      # Question management UI (used by the editor)
 │   ├── ActivityPage.tsx     # Loads an activity from a shareable link
 │   ├── PlayPage.tsx         # Student play flow (used by the activity page)
+│   ├── ResultsPage.tsx      # Attempts and per-question stats for the teacher
 │   └── LoginPage.tsx
 ├── components/
 │   ├── form/                # Form fields for each question type
@@ -102,8 +108,7 @@ src/
 │   └── trivia.ts            # Fetches and maps trivia questions
 └── utils/
     ├── shuffle.ts
-    └── validateQuestion.ts  # Pure validation logic, unit tested
-    
+    └── validateQuestion.ts  # Pure validation logic, unit tested    
 ```
 
 ## Run Locally
@@ -145,6 +150,7 @@ npm test
 - [x] TypeScript migration
 - [x] Autosave in the editor
 - [x] Runtime validation of database data (Zod)
-- [ ] Student results and per-question statistics for teachers
+- [x] Student results and per-question statistics for teachers
+- [ ] Store question IDs with each answer so stats stay accurate after a teacher edits questions
 - [ ] Reorder questions with drag and drop in the editor
 - [ ] Tests for ordering and matching questions
