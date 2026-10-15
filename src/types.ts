@@ -35,3 +35,9 @@ export type PlayProps<Q extends Question> = {
   question: Q;
   onAnswer: (isCorrect: boolean) => void;
 };
+
+export type AttemptResult = {
+  score: number;
+  total: number;
+  answers: boolean[];
+};

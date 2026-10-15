@@ -24,3 +24,39 @@ create policy "Owners can update their activities"
 
 create policy "Owners can delete their activities"
   on activities for delete using (auth.uid() = owner_id);
+
+
+  create table attempts (
+  id uuid primary key default gen_random_uuid(),
+  activity_id uuid not null references activities(id) on delete cascade,
+  student_name text not null check (char_length(student_name) between 1 and 50),
+  score int not null check (score >= 0),
+  total int not null check (total > 0 and score <= total),
+  answers jsonb not null default '[]',
+  created_at timestamptz not null default now()
+);
+
+alter table attempts enable row level security;
+
+-- Anyone can submit an attempt, but only for an activity that exists.
+create policy "Anyone can submit attempts"
+  on attempts for insert
+  with check (exists (select 1 from activities where id = activity_id));
+
+-- Only the activity's owner can read its attempts.
+create policy "Owners can read attempts for their activities"
+  on attempts for select
+  using (exists (
+    select 1 from activities
+    where activities.id = attempts.activity_id
+      and activities.owner_id = auth.uid()
+  ));
+
+-- Only the activity's owner can delete its attempts.
+create policy "Owners can delete attempts for their activities"
+  on attempts for delete
+  using (exists (
+    select 1 from activities
+    where activities.id = attempts.activity_id
+      and activities.owner_id = auth.uid()
+  ));

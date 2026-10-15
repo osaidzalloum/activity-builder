@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import type { Question } from '../types';
+import type { Question, AttemptResult } from '../types';
 import McqQuestion from '../components/play/McqQuestion';
 import OrderQuestion from '../components/play/OrderQuestion';
 import MatchQuestion from '../components/play/MatchQuestion';
+
 type PlayPageProps = {
   questions: Question[];
+  onFinish?: (result: AttemptResult) => void;
 };
 function renderQuestion(question: Question, onAnswer: (isCorrect: boolean) => void) {
   switch (question.type) {
@@ -21,11 +23,12 @@ function renderQuestion(question: Question, onAnswer: (isCorrect: boolean) => vo
   }
 }
 
-function PlayPage({ questions }: PlayPageProps) {
+function PlayPage({ questions ,onFinish  }: PlayPageProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [result, setResult] = useState<boolean | null>(null);
-  const [score, setScore] = useState(0);
+  const [answers, setAnswers] = useState<boolean[]>([]);
 
+  const score = answers.filter(Boolean).length;
   if (questions.length === 0) {
     return <p>لا توجد أسئلة بعد. أضف أسئلة من صفحة البناء.</p>;
   }
@@ -38,7 +41,7 @@ function PlayPage({ questions }: PlayPageProps) {
         <button className="btn btn-primary" onClick={() => {
           setCurrentIndex(0);
           setResult(null);
-          setScore(0);
+          setAnswers([]);
         }}>
           إعادة المحاولة
         </button>
@@ -52,11 +55,15 @@ function PlayPage({ questions }: PlayPageProps) {
 
   function handleAnswer(isCorrect: boolean) {
     setResult(isCorrect);
-    if (isCorrect) setScore((s) => s + 1);
+    setAnswers((current) => [...current, isCorrect]);
   }
 
   function handleNext() {
-    setCurrentIndex((i) => i + 1);
+    const nextIndex = currentIndex + 1;
+    if (nextIndex === questions.length) {
+      onFinish?.({ score, total: questions.length, answers });
+    }
+    setCurrentIndex(nextIndex);
     setResult(null);
   }
   const questionElement = renderQuestion(question, handleAnswer);
@@ -71,6 +78,7 @@ function PlayPage({ questions }: PlayPageProps) {
       <h2>السؤال {currentIndex + 1} من {questions.length}</h2>
 
       {questionElement}
+
       {result !== null && (
         <div>
           <p>{result ? '✅ إجابة صحيحة' : '❌ إجابة خاطئة'}</p>
