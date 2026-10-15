@@ -66,6 +66,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Writing RLS policies across related tables: anyone can submit an attempt, only the activity owner can read it
 - Avoiding insert().select() when the user can write but not read a row under RLS
 - Fetching independent data in parallel with Promise.all
+- Linking stored answers to stable question IDs instead of array positions, and handling legacy data when a stored shape changes
 
 ## Project Structure
 
@@ -151,6 +152,6 @@ npm test
 - [x] Autosave in the editor
 - [x] Runtime validation of database data (Zod)
 - [x] Student results and per-question statistics for teachers
-- [ ] Store question IDs with each answer so stats stay accurate after a teacher edits questions
+- [x] Store question IDs with each answer so stats stay accurate after a teacher edits questions
 - [ ] Reorder questions with drag and drop in the editor
 - [ ] Tests for ordering and matching questions
