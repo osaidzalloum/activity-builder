@@ -25,6 +25,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Full RTL support for Arabic
 - Import ready-made questions from Open Trivia DB through a serverless API route
 - Student results: students enter a name, attempts are saved, and teachers see scores, averages, and per-question success rates
+- Reorder questions in the editor with a drag handle (mouse, touch, or keyboard)
 
 ## Tech Stack
 
@@ -67,6 +68,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Avoiding insert().select() when the user can write but not read a row under RLS
 - Fetching independent data in parallel with Promise.all
 - Linking stored answers to stable question IDs instead of array positions, and handling legacy data when a stored shape changes
+- Extracting repeated hook logic into a custom hook (useSortSensors)
 
 ## Project Structure
 
@@ -102,6 +104,8 @@ src/
 │   ├── AuthContext.ts       # The context object
 │   ├── AuthProvider.tsx     # Session state and auth actions
 │   └── useAuth.ts           # Hook to read auth state anywhere 
+├── hooks/
+│   └── useSortSensors.ts    # Shared drag-and-drop sensors
 ├── test/
 │   └── setup.ts             # Test setup (jest-dom matchers, cleanup)
 ├── lib/
