@@ -41,34 +41,29 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 
 ## What I Learned
 
-- Securing data with Row Level Security instead of relying on hidden keys
-- Detecting silent update failures caused by RLS (checking affected rows)
-- Sharing auth state across the app with React Context and a custom hook
-- Handling async data fetching with loading, error, and not-found states, and avoiding race conditions
-- Designing components around a shared interface (`onAnswer`) so new question types plug in without changing the play page
-- Replacing a lookup object with an exhaustive switch, because TypeScript couldn't guarantee the looked-up component matched the question type
-- Lifting state up to share data between routes, and keeping state colocated where it is used
-- Resetting component state using the `key` prop instead of syncing with `useEffect`
-- Handling stale state (e.g. deleting a question while it is being edited)
-- Refactoring code structure without changing behavior
-- Building accessible drag and drop with keyboard and button alternatives
-- Cleaning up event listeners and subscriptions in `useEffect`
-- Modeling question types as a discriminated union so the compiler flags every place to update when a new type is added
-- Exhaustive checks with `never` in switch statements
-- Validating database data at runtime with Zod, and deriving TypeScript types from the same schemas so there is one source of truth
+### Security & Data
+- Securing data with Row Level Security instead of relying on hidden keys, including policies across related tables (anyone can submit an attempt, only the owner can read it)
+- Detecting silent RLS failures: updates that succeed with zero affected rows, and inserts that fail when chained with `.select()`
+- Validating database data at runtime with Zod, deriving TypeScript types from the same schemas
+- Linking answers to stable question IDs instead of array positions, and migrating legacy data when a stored shape changes
+- Keeping secret API keys off the client with a serverless proxy
+
+### React Patterns
+- Designing components around shared interfaces (`onAnswer`, `onFinish`) so new question types and features plug in without rewrites
+- Handling async data with loading/error/not-found states, and avoiding race conditions in effects
+- Debouncing autosave, with a ref-based revision counter so edits made during a save are never lost
+- Resetting state with the `key` prop, colocating state, and extracting custom hooks
+- Code splitting with `React.lazy` and `Suspense`
+
+### TypeScript
+- Modeling question types as a discriminated union with exhaustive `never` checks, so the compiler lists every place to update when a type is added
 - Migrating a JavaScript codebase to TypeScript incrementally without breaking the app
-- Code splitting with React.lazy and Suspense so each page loads only when visited
-- Keeping secret API keys off the client by proxying requests through a Vercel serverless function
-- Debouncing autosave with useEffect cleanup, and using a ref-based revision counter to avoid losing edits made during a save
-- Extracting logic into pure functions to make it testable, and unit testing it with Vitest
-- Testing components the way users use them with React Testing Library (roles, clicks, and accessible names)
+
+### Testing & CI
+- Extracting logic into pure functions to make it testable
+- Testing components by role and accessible name, and mocking randomness with `vi.mock` only where needed
+- Writing regression tests that lock in fixed bugs
 - Running type checks, tests, and builds on every push with GitHub Actions
-- Relating tables with foreign keys and cascade deletes, and enforcing data rules with check constraints in the database
-- Writing RLS policies across related tables: anyone can submit an attempt, only the activity owner can read it
-- Avoiding insert().select() when the user can write but not read a row under RLS
-- Fetching independent data in parallel with Promise.all
-- Linking stored answers to stable question IDs instead of array positions, and handling legacy data when a stored shape changes
-- Extracting repeated hook logic into a custom hook (useSortSensors)
 
 ## Project Structure
 
@@ -157,5 +152,5 @@ npm test
 - [x] Runtime validation of database data (Zod)
 - [x] Student results and per-question statistics for teachers
 - [x] Store question IDs with each answer so stats stay accurate after a teacher edits questions
-- [ ] Reorder questions with drag and drop in the editor
-- [ ] Tests for ordering and matching questions
+- [x] Reorder questions with drag and drop in the editor
+- [x] Tests for ordering and matching questions
