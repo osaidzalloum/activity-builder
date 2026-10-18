@@ -154,3 +154,7 @@ npm test
 - [x] Store question IDs with each answer so stats stay accurate after a teacher edits questions
 - [x] Reorder questions with drag and drop in the editor
 - [x] Tests for ordering and matching questions
+- [ ] AI-generated questions in Arabic from a topic (serverless function)
+- [ ] Images in questions (Supabase Storage)
+- [ ] Integration test for the full play flow (answer, score, and onFinish)
+- [ ] Re-enable email confirmation and add password reset
