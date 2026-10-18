@@ -5,10 +5,12 @@ import Modal from '../components/Modal';
 import { fetchTriviaQuestions } from '../lib/trivia';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { Question, QuestionDraft } from '../types';
+import { arrayMove } from '@dnd-kit/sortable';
 type BuilderPageProps = {
     questions: Question[];
     setQuestions: Dispatch<SetStateAction<Question[]>>;
 };
+
 function BuilderPage({ questions, setQuestions }: BuilderPageProps) {
 
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -23,7 +25,13 @@ function BuilderPage({ questions, setQuestions }: BuilderPageProps) {
             setEditingQuestion(null);
         }
     }
-
+    function handleReorder(activeId: string, overId: string) {
+        setQuestions((current) => {
+            const oldIndex = current.findIndex((q) => q.id === activeId);
+            const newIndex = current.findIndex((q) => q.id === overId);
+            return arrayMove(current, oldIndex, newIndex);
+        });
+    }
     function handleAddQuestion(draft: QuestionDraft) {
         setQuestions((current) => [...current, { ...draft, id: crypto.randomUUID() }]);
         closeForm();
@@ -73,6 +81,7 @@ function BuilderPage({ questions, setQuestions }: BuilderPageProps) {
                 questions={questions}
                 onDeleteQuestion={handleDeleteQuestion}
                 onEditQuestion={openEditForm}
+                onReorder={handleReorder}
             />
             <div className="actions">
                 <button className="btn btn-primary" onClick={openAddForm}>

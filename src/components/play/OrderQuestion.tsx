@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import type { OrderQuestion as OrderQuestionType, PlayProps } from '../../types';
-import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import SortableItem from './SortableItem';
 import shuffle from '../../utils/shuffle';
-import type { DragEndEvent } from '@dnd-kit/core';
+import useSortSensors from '../../hooks/useSortSensors';
 function OrderQuestion({ question, onAnswer }: PlayProps<OrderQuestionType>) {
+    const sensors = useSortSensors();
     const [currentOrder, setCurrentOrder] = useState(() => {
         let shuffled = shuffle(question.items);
         if (question.items.length > 1) {
@@ -32,11 +33,6 @@ function OrderQuestion({ question, onAnswer }: PlayProps<OrderQuestionType>) {
         if (!checked) return "order-item";
         return item === question.items[index] ? "order-item correct" : "order-item wrong";
     }
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-    );
 
     function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;

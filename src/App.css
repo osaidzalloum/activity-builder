@@ -364,3 +364,25 @@ ol.options {
   text-align: start;
   border-bottom: 1px solid var(--border);
 }
+
+.sortable-question {
+  position: relative;
+}
+
+.drag-handle {
+  position: absolute;
+  top: 16px;
+  inset-inline-end: 16px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: grab;
+  touch-action: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.drag-handle:hover {
+  background: var(--bg);
+}
