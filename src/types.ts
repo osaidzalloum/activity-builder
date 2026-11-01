@@ -1,7 +1,8 @@
 import type { z } from 'zod';
 import type {
   mcqQuestionSchema, orderQuestionSchema, matchQuestionSchema,
-  matchPairSchema, questionSchema, attemptAnswerSchema, attemptSchema
+  matchPairSchema, questionSchema, attemptAnswerSchema, attemptSchema,
+  sessionStateSchema, liveSessionSchema, joinedSessionsSchema,participantSchema,
 } from './schemas';
 
 export type McqQuestion = z.infer<typeof mcqQuestionSchema>;
@@ -28,7 +29,6 @@ export type Activity = {
   created_at: string;
 };
 
-
 export type PlayProps<Q extends Question> = {
   question: Q;
   onAnswer: (isCorrect: boolean) => void;
@@ -39,3 +39,8 @@ export type AttemptResult = {
   total: number;
   answers: AttemptAnswer[];
 };
+
+export type SessionState = z.infer<typeof sessionStateSchema>;
+export type LiveSession = z.infer<typeof liveSessionSchema>;
+export type JoinedSession = z.infer<typeof joinedSessionsSchema>[number];
+export type Participant = z.infer<typeof participantSchema>;
