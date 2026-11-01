@@ -8,6 +8,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const EditorPage = lazy(() => import('./pages/EditorPage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const LiveHostPage = lazy(() => import('./pages/LiveHostPage'));
 
 function App() {
   const { user, signOut } = useAuth();
@@ -35,6 +36,7 @@ function App() {
           <Route path="/play/:activityId" element={<ActivityPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/activities/:activityId/results" element={<RequireAuth><ResultsPage /></RequireAuth>} />
+          <Route path="/live/:code" element={<RequireAuth><LiveHostPage /></RequireAuth>} />
         </Routes>
       </Suspense>
     </div>
