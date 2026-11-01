@@ -3,6 +3,7 @@ import type { Activity } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/useAuth';
+import { liveSessionSchema } from '../schemas';
 type ActivitySummary = Pick<Activity, "id" | "title" | "created_at">;
 type LoadStatus = "loading" | "ready" | "error";
 function DashboardPage() {
@@ -10,6 +11,7 @@ function DashboardPage() {
   const navigate = useNavigate();
   const [activities, setActivities] = useState<ActivitySummary[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -63,6 +65,22 @@ function DashboardPage() {
     setActivities((current) => current.filter((a) => a.id !== id));
   }
 
+  async function handleStartLive(activityId: string) {
+    setStartingId(activityId);
+    const { data, error } = await supabase.rpc("create_live_session", {
+      p_activity_id: activityId,
+    });
+    const parsed = liveSessionSchema.safeParse(data);
+
+    if (error || !parsed.success) {
+      console.error(error ?? (parsed.success ? null : parsed.error.issues));
+      alert("ما قدرنا نبدأ الجلسة.");
+      setStartingId(null);
+      return;
+    }
+    navigate(`/live/${parsed.data.code}`);
+  }
+
   if (status === "loading") return <p>جاري التحميل...</p>;
   if (status === "error") return <p>صار خطأ أثناء تحميل الأنشطة.</p>;
 
@@ -81,6 +99,13 @@ function DashboardPage() {
               <Link className="btn btn-primary" to={`/activities/${a.id}/edit`}>تعديل</Link>
               <Link className="btn" to={`/play/${a.id}`}>تجربة</Link>
               <Link className="btn" to={`/activities/${a.id}/results`}>النتائج</Link>
+              <button
+                className="btn"
+                onClick={() => handleStartLive(a.id)}
+                disabled={startingId !== null}
+              >
+                {startingId === a.id ? "جاري البدء..." : "جلسة حية"}
+              </button>
               <button className="btn btn-delete" onClick={() => handleDelete(a.id)}>حذف</button>
             </div>
           </div>
