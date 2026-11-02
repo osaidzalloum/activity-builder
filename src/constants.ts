@@ -1,0 +1,1 @@
+export const QUESTION_TIME_LIMIT_MS = 20_000;

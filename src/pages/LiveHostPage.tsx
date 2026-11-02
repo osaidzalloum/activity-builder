@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/useAuth";
+import { QUESTION_TIME_LIMIT_MS } from "../constants";
 import { answerEventSchema, liveSessionSchema, questionsSchema } from "../schemas";
-import { toPublicQuestion } from "../utils/toPublicQuestion";
+import { buildLeaderboard } from "../utils/buildLeaderboard";
+import { scoreQuestion, sumScores, type ReceivedAnswer } from "../utils/scoreQuestion";
 import { summarizeAnswers } from "../utils/summarizeAnswers";
+import { toPublicQuestion } from "../utils/toPublicQuestion";
 import useLiveChannel from "../hooks/useLiveChannel";
 import type {
   LiveSession,
@@ -16,8 +19,10 @@ import type {
 } from "../types";
 
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
-// question index -> player id -> chosen option
-type Answers = Record<number, Record<string, number>>;
+// question index -> player id -> answer
+type Answers = Record<number, Record<string, ReceivedAnswer>>;
+// question index -> player id -> points for that question
+type Scores = Record<number, Record<string, number>>;
 
 const LiveHostPage = () => {
   const { code } = useParams<{ code: string }>();
@@ -27,6 +32,7 @@ const LiveHostPage = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [answers, setAnswers] = useState<Answers>({});
+  const [scores, setScores] = useState<Scores>({});
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -85,6 +91,9 @@ const LiveHostPage = () => {
 
   function handleBroadcast(event: string, payload: unknown) {
     if (event !== "answer") return;
+    // read the clock once, outside the state updater (updaters must stay pure)
+    const receivedAt = Date.now();
+
     // students are untrusted: validate every answer
     const parsed = answerEventSchema.safeParse(payload);
     if (!parsed.success) return;
@@ -97,7 +106,7 @@ const LiveHostPage = () => {
     setAnswers((prev) => {
       const forQuestion = prev[index] ?? {};
       if (Object.hasOwn(forQuestion, playerId)) return prev; // first answer wins
-      return { ...prev, [index]: { ...forQuestion, [playerId]: choice } };
+      return { ...prev, [index]: { ...forQuestion, [playerId]: {choice, receivedAt } } };
     });
   }
 
@@ -140,37 +149,55 @@ const LiveHostPage = () => {
   const skipped = questions.length - liveQuestions.length;
 
   const answersForCurrent = answers[currentIndex] ?? {};
+  const choices = Object.fromEntries(
+    Object.entries(answersForCurrent).map(([id, a]) => [id, a.choice])
+  );
   const { answeredCount, countFor } = summarizeAnswers(
     players,
-    answersForCurrent,
+    choices,
     current?.options.length ?? 0
   );
 
+  // totals and ranking are derived: nothing here can be counted twice
+  const board = buildLeaderboard(players, sumScores(scores));
+  const hasScores = Object.keys(scores).length > 0;
+
   // 1. save the state first, so a student who refreshes can recover it
   // 2. then notify the students
-  async function changeState(newState: SessionState, event: string, payload: unknown) {
-    if (!session) return;
+  // onlyFrom makes the move conditional in the database
+  async function changeState(
+    newState: SessionState, 
+    event: string, 
+    payload: unknown,
+    onlyForm?: SessionState["status"]
+  ): Promise<boolean> {
+    if (!session) return false;
     setBusy(true);
     setActionError("");
 
-    const { data, error } = await supabase
-      .from("live_sessions")
-      .update({ state: newState })
-      .eq("id", session.id)
-      .select("id");
+    const base = supabase
+    .from("live_sessins")
+    .update({ state: newState })
+    .eq("id", session.id);
 
-    // an update blocked by RLS returns no error, only zero rows
+    const { data, error } = await (onlyForm
+      ? base.eq("state->>status", onlyForm)
+      : base
+    ).select("id");
+
+    // an update blocked by RLS (or by the condition) returns no error, only zero rows
     if (error || !data || data.length === 0) {
       console.error(error);
       setActionError("ما قدرنا نحدّث الجلسة.");
       setBusy(false);
-      return;
+      return false;
     }
     setSession({ ...session, state: newState });
 
     const sent = await send(event, payload);
     if (!sent) setActionError("انحفظ التحديث بس البث للطلاب فشل.");
     setBusy(false);
+    return true;
   }
 
   function handleNext() {
@@ -185,14 +212,27 @@ const LiveHostPage = () => {
     changeState({ status: "question", index: nextIndex, startedAt }, "question", payload);
   }
 
-  function handleReveal() {
-    if (!isOpen || !currentLive) return;
+  async function handleReveal() {
+    if (state.status !== "question" || !currentLive) return;
+    const { index, startedAt } = state;
+    // the answers that arrived by the moment the teacher clicked
+    const snapshot = answers[index] ?? {};
+
     // the correct answer leaves the host only now, after answers are closed
-    const payload: RevealEvent = {
-      index: currentIndex,
-      correctIndex: currentLive.correctIndex,
-    };
-    changeState({ status: "reveal", index: currentIndex }, "reveal", payload);
+    const payload: RevealEvent = { index: currentIndex, correctIndex: currentLive.correctIndex };
+    const moved = await changeState(
+      { status: "reveal", index },
+       "reveal", 
+       payload,
+       "question"
+      );
+      if (!moved) return;
+
+      // overwrite, don't add: scoring the same question twice gives the same result
+      setScores((prev) => ({
+        ...prev,
+        [index]: scoreQuestion(snapshot, currentLive.correctIndex, startedAt, QUESTION_TIME_LIMIT_MS)
+      }))
   }
 
   return (
@@ -260,6 +300,20 @@ const LiveHostPage = () => {
           </div>
           {actionError && <p className="error">{actionError}</p>}
         </div>
+      )}
+
+      {hasScores && (
+        <>
+          <h2>لوحة الترتيب</h2>
+          <ol className="leaderboard">
+            {board.map((entry) => (
+              <li key={entry.id}>
+                <span>{entry.rank}</span> <strong>{entry.name}</strong>{" "}
+                <span className="hint">{entry.points}</span>
+              </li>
+            ))}
+          </ol>
+        </>
       )}
 
       <h2>المتصلون ({players.length})</h2>

@@ -1,4 +1,4 @@
-export const MAX_POINIS = 1000;
+export const MAX_POINTS = 1000;
 export const MIN_CORRECT_POINTS = 500;
 
 
@@ -16,5 +16,5 @@ export function calculateScore(
 
     // 0 = answered instantly, 1 = answered at (or after) the limit
     const ratio = Math.min(Math.max(elapsedMs / timeLimitMs, 0), 1);
-    return Math.round(MAX_POINIS * (1 - ratio / 2));
+    return Math.round(MAX_POINTS * (1 - ratio / 2));
 }

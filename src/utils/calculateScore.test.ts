@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateScore, MAX_POINIS, MIN_CORRECT_POINTS } from "./calculateScore";
+import { calculateScore, MAX_POINTS, MIN_CORRECT_POINTS } from "./calculateScore";
 
 const LIMIT = 20_000;
 
@@ -9,7 +9,7 @@ describe("calculateScore", () => {
     });
 
     it("gives the maximum for an instant correct answer", () => {
-        expect(calculateScore(true, 0, LIMIT)).toBe(MAX_POINIS);
+        expect(calculateScore(true, 0, LIMIT)).toBe(MAX_POINTS);
     });
 
     it("gives the minimum for a correct answer at the time limit", () => {
@@ -25,7 +25,7 @@ describe("calculateScore", () => {
     });
 
     it("does not exceed the maximum for a negative elapsed time", () => {
-        expect(calculateScore(true, -500, LIMIT)).toBe(MAX_POINIS);
+        expect(calculateScore(true, -500, LIMIT)).toBe(MAX_POINTS);
     });
 
     it.each([
