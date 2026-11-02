@@ -106,7 +106,7 @@ const LiveHostPage = () => {
     setAnswers((prev) => {
       const forQuestion = prev[index] ?? {};
       if (Object.hasOwn(forQuestion, playerId)) return prev; // first answer wins
-      return { ...prev, [index]: { ...forQuestion, [playerId]: {choice, receivedAt } } };
+      return { ...prev, [index]: { ...forQuestion, [playerId]: { choice, receivedAt } } };
     });
   }
 
@@ -166,29 +166,34 @@ const LiveHostPage = () => {
   // 2. then notify the students
   // onlyFrom makes the move conditional in the database
   async function changeState(
-    newState: SessionState, 
-    event: string, 
+    newState: SessionState,
+    event: string,
     payload: unknown,
-    onlyForm?: SessionState["status"]
+    onlyFrom?: SessionState["status"]
   ): Promise<boolean> {
     if (!session) return false;
     setBusy(true);
     setActionError("");
 
     const base = supabase
-    .from("live_sessins")
-    .update({ state: newState })
-    .eq("id", session.id);
+      .from("live_sessions")
+      .update({ state: newState })
+      .eq("id", session.id);
 
-    const { data, error } = await (onlyForm
-      ? base.eq("state->>status", onlyForm)
+    const { data, error } = await (onlyFrom
+      ? base.eq("state->>status", onlyFrom)
       : base
     ).select("id");
 
-    // an update blocked by RLS (or by the condition) returns no error, only zero rows
-    if (error || !data || data.length === 0) {
+    if (error) {
       console.error(error);
-      setActionError("ما قدرنا نحدّث الجلسة.");
+      setActionError(`ما قدرنا نحدّث الجلسة: ${error.message}`);
+      setBusy(false);
+      return false;
+    }
+    if (!data || data.length === 0) {
+      console.error("Update changed 0 rows: blocked by RLS or by the condition");
+      setActionError("ما قدرنا نحدّث الجلسة: ما في صلاحية للتعديل.");
       setBusy(false);
       return false;
     }
@@ -222,17 +227,17 @@ const LiveHostPage = () => {
     const payload: RevealEvent = { index: currentIndex, correctIndex: currentLive.correctIndex };
     const moved = await changeState(
       { status: "reveal", index },
-       "reveal", 
-       payload,
-       "question"
-      );
-      if (!moved) return;
+      "reveal",
+      payload,
+      "question"
+    );
+    if (!moved) return;
 
-      // overwrite, don't add: scoring the same question twice gives the same result
-      setScores((prev) => ({
-        ...prev,
-        [index]: scoreQuestion(snapshot, currentLive.correctIndex, startedAt, QUESTION_TIME_LIMIT_MS)
-      }))
+    // overwrite, don't add: scoring the same question twice gives the same result
+    setScores((prev) => ({
+      ...prev,
+      [index]: scoreQuestion(snapshot, currentLive.correctIndex, startedAt, QUESTION_TIME_LIMIT_MS)
+    }))
   }
 
   return (
