@@ -9,6 +9,7 @@ const EditorPage = lazy(() => import('./pages/EditorPage'));
 const ActivityPage = lazy(() => import('./pages/ActivityPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LiveHostPage = lazy(() => import('./pages/LiveHostPage'));
+const JoinPage = lazy(() => import('./pages/JoinPage'));
 
 function App() {
   const { user, signOut } = useAuth();
@@ -37,6 +38,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/activities/:activityId/results" element={<RequireAuth><ResultsPage /></RequireAuth>} />
           <Route path="/live/:code" element={<RequireAuth><LiveHostPage /></RequireAuth>} />
+          <Route path="/join" element={<JoinPage />} />
         </Routes>
       </Suspense>
     </div>
