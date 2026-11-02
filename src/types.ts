@@ -3,7 +3,7 @@ import type {
   mcqQuestionSchema, orderQuestionSchema, matchQuestionSchema,
   matchPairSchema, questionSchema, attemptAnswerSchema, attemptSchema,
   sessionStateSchema, liveSessionSchema, joinedSessionsSchema, participantSchema,
-  publicQuestionSchema, questionEventSchema,
+  publicQuestionSchema, questionEventSchema, answerEventSchema, revealEventSchema
 } from './schemas';
 
 export type McqQuestion = z.infer<typeof mcqQuestionSchema>;
@@ -46,4 +46,6 @@ export type LiveSession = z.infer<typeof liveSessionSchema>;
 export type JoinedSession = z.infer<typeof joinedSessionsSchema>[number];
 export type PublicQuestion = z.infer<typeof publicQuestionSchema>;
 export type QuestionEvent = z.infer<typeof questionEventSchema>;
+export type AnswerEvent = z.infer<typeof answerEventSchema>;
+export type RevealEvent = z.infer<typeof revealEventSchema>;
 export type Participant = z.infer<typeof participantSchema>;

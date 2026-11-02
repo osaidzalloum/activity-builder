@@ -95,3 +95,15 @@ export const questionEventSchema = z.object({
   startedAt: z.number(),
   question: publicQuestionSchema,
 });
+
+
+export const answerEventSchema = z.object({
+  playerId: z.string().max(64),
+  index: z.number().int().min(0),
+  choice: z.number().int().min(0).max(20),
+});
+
+export const revealEventSchema = z.object({
+  index: z.number().int().min(0),
+  correctIndex: z.number().int().min(0),
+});

@@ -386,3 +386,8 @@ ol.options {
 .drag-handle:hover {
   background: var(--bg);
 }
+
+.play-option.active {
+  border-color: var(--primary);
+  background: #dbeafe;
+}

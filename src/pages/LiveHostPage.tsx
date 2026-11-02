@@ -2,12 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/useAuth";
-import { liveSessionSchema, questionsSchema } from "../schemas";
+import { answerEventSchema, liveSessionSchema, questionsSchema } from "../schemas";
 import { toPublicQuestion } from "../utils/toPublicQuestion";
 import useLiveChannel from "../hooks/useLiveChannel";
-import type { LiveSession, Question, QuestionEvent, SessionState } from "../types";
+import type {
+  LiveSession,
+  McqQuestion,
+  Question,
+  QuestionEvent,
+  RevealEvent,
+  SessionState,
+} from "../types";
 
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
+// question index -> player id -> chosen option
+type Answers = Record<number, Record<string, number>>;
 
 const LiveHostPage = () => {
   const { code } = useParams<{ code: string }>();
@@ -16,6 +25,7 @@ const LiveHostPage = () => {
   const [session, setSession] = useState<LiveSession | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
+  const [answers, setAnswers] = useState<Answers>({});
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -72,46 +82,74 @@ const LiveHostPage = () => {
     return () => { ignore = true; };
   }, [code]);
 
+  function handleBroadcast(event: string, payload: unknown) {
+    if (event !== "answer") return;
+    // students are untrusted: validate every answer
+    const parsed = answerEventSchema.safeParse(payload);
+    if (!parsed.success) return;
+    const { playerId, index, choice } = parsed.data;
+
+    // accept answers only for the question that is currently open
+    const state = session?.state;
+    if (state?.status !== "question" || state.index !== index) return;
+
+    setAnswers((prev) => {
+      const forQuestion = prev[index] ?? {};
+      if (playerId in forQuestion) return prev; // first answer wins
+      return { ...prev, [index]: { ...forQuestion, [playerId]: choice } };
+    });
+  }
+
   const { participants, send } = useLiveChannel(
     status === "ready" ? code : undefined,
     user?.id,
     "Host",
-    "host"
+    "host",
+    handleBroadcast
   );
   const players = participants.filter((p) => p.role === "player");
 
-  // only the questions that live sessions support, without the answers
+  // live sessions support multiple choice only (for now)
+  const liveQuestions = useMemo(
+    () => questions.filter((q): q is McqQuestion => q.type === "mcq"),
+    [questions]
+  );
+  // same order and length as liveQuestions, but without the answers
   const publicQuestions = useMemo(
     () =>
-      questions.flatMap((q) => {
+      liveQuestions.flatMap((q) => {
         const publicQuestion = toPublicQuestion(q);
         return publicQuestion ? [publicQuestion] : [];
       }),
-    [questions]
+    [liveQuestions]
   );
 
   if (status === "loading") return <p>جاري التحميل...</p>;
   if (status === "not-found") return <p>الجلسة غير موجودة.</p>;
   if (status === "error" || !session) return <p>صار خطأ أثناء تحميل الجلسة.</p>;
 
-  const skipped = questions.length - publicQuestions.length;
-  const currentIndex =
-    session.state.status === "question" || session.state.status === "reveal"
-      ? session.state.index
-      : -1;
+  const state = session.state;
+  const isOpen = state.status === "question";
+  const isRevealed = state.status === "reveal";
+  const currentIndex = isOpen || isRevealed ? state.index : -1;
   const current = publicQuestions[currentIndex] ?? null;
+  const currentLive = liveQuestions[currentIndex] ?? null;
   const nextIndex = currentIndex + 1;
   const hasMore = nextIndex < publicQuestions.length;
+  const skipped = questions.length - liveQuestions.length;
 
-  async function handleNext() {
-    if (!session || !hasMore) return;
+  const answersForCurrent = answers[currentIndex] ?? {};
+  const answeredCount = players.filter((p) => p.id in answersForCurrent).length;
+  const countFor = (optionIndex: number) =>
+    players.filter((p) => answersForCurrent[p.id] === optionIndex).length;
+
+  // 1. save the state first, so a student who refreshes can recover it
+  // 2. then notify the students
+  async function changeState(newState: SessionState, event: string, payload: unknown) {
+    if (!session) return;
     setBusy(true);
     setActionError("");
 
-    const startedAt = Date.now();
-    const newState: SessionState = { status: "question", index: nextIndex, startedAt };
-
-    // 1. save the state, so a student who refreshes can recover it
     const { data, error } = await supabase
       .from("live_sessions")
       .update({ state: newState })
@@ -127,16 +165,31 @@ const LiveHostPage = () => {
     }
     setSession({ ...session, state: newState });
 
-    // 2. then notify the students
-    const event: QuestionEvent = {
+    const sent = await send(event, payload);
+    if (!sent) setActionError("انحفظ التحديث بس البث للطلاب فشل.");
+    setBusy(false);
+  }
+
+  function handleNext() {
+    if (!hasMore) return;
+    const startedAt = Date.now();
+    const payload: QuestionEvent = {
       index: nextIndex,
       total: publicQuestions.length,
       startedAt,
       question: publicQuestions[nextIndex],
     };
-    const sent = await send("question", event);
-    if (!sent) setActionError("انحفظ التحديث بس البث للطلاب فشل.");
-    setBusy(false);
+    changeState({ status: "question", index: nextIndex, startedAt }, "question", payload);
+  }
+
+  function handleReveal() {
+    if (!isOpen || !currentLive) return;
+    // the correct answer leaves the host only now, after answers are closed
+    const payload: RevealEvent = {
+      index: currentIndex,
+      correctIndex: currentLive.correctIndex,
+    };
+    changeState({ status: "reveal", index: currentIndex }, "reveal", payload);
   }
 
   return (
@@ -161,15 +214,22 @@ const LiveHostPage = () => {
         <p className="error">هذا النشاط ما فيه أسئلة اختيار من متعدد.</p>
       ) : (
         <div className="card">
-          {current ? (
+          {current && currentLive ? (
             <>
               <p className="hint">
                 السؤال {currentIndex + 1} من {publicQuestions.length}
+                {" · "}
+                جاوب {answeredCount} من {players.length}
               </p>
               <h2>{current.text}</h2>
               <ul className="options">
                 {current.options.map((option, i) => (
-                  <li key={i}>{option}</li>
+                  <li
+                    key={i}
+                    className={isRevealed && i === currentLive.correctIndex ? "correct-answer" : ""}
+                  >
+                    {option} <span className="hint">({countFor(i)})</span>
+                  </li>
                 ))}
               </ul>
             </>
@@ -177,13 +237,24 @@ const LiveHostPage = () => {
             <p>لسا ما بدأت الأسئلة.</p>
           )}
 
-          {hasMore ? (
-            <button className="btn btn-primary" onClick={handleNext} disabled={busy}>
-              {busy ? "جاري الإرسال..." : currentIndex < 0 ? "ابدأ: السؤال الأول" : "السؤال التالي"}
-            </button>
-          ) : (
-            <p className="hint">انتهت الأسئلة.</p>
-          )}
+          <div className="actions">
+            {isOpen && (
+              <button className="btn btn-primary" onClick={handleReveal} disabled={busy}>
+                اكشف الجواب
+              </button>
+            )}
+            {hasMore ? (
+              <button className="btn" onClick={handleNext} disabled={busy}>
+                {busy
+                  ? "جاري الإرسال..."
+                  : currentIndex < 0
+                    ? "ابدأ: السؤال الأول"
+                    : "السؤال التالي"}
+              </button>
+            ) : (
+              currentIndex >= 0 && <p className="hint">هذا آخر سؤال.</p>
+            )}
+          </div>
           {actionError && <p className="error">{actionError}</p>}
         </div>
       )}
@@ -194,7 +265,10 @@ const LiveHostPage = () => {
       ) : (
         <ul>
           {players.map((p) => (
-            <li key={p.id}>{p.name}</li>
+            <li key={p.id}>
+              {p.name}
+              {isOpen && p.id in answersForCurrent ? " ✓" : ""}
+            </li>
           ))}
         </ul>
       )}
