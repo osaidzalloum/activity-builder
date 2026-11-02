@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/useAuth";
 import { answerEventSchema, liveSessionSchema, questionsSchema } from "../schemas";
 import { toPublicQuestion } from "../utils/toPublicQuestion";
+import { summarizeAnswers } from "../utils/summarizeAnswers";
 import useLiveChannel from "../hooks/useLiveChannel";
 import type {
   LiveSession,
@@ -95,7 +96,7 @@ const LiveHostPage = () => {
 
     setAnswers((prev) => {
       const forQuestion = prev[index] ?? {};
-      if (playerId in forQuestion) return prev; // first answer wins
+      if (Object.hasOwn(forQuestion, playerId)) return prev; // first answer wins
       return { ...prev, [index]: { ...forQuestion, [playerId]: choice } };
     });
   }
@@ -139,9 +140,11 @@ const LiveHostPage = () => {
   const skipped = questions.length - liveQuestions.length;
 
   const answersForCurrent = answers[currentIndex] ?? {};
-  const answeredCount = players.filter((p) => p.id in answersForCurrent).length;
-  const countFor = (optionIndex: number) =>
-    players.filter((p) => answersForCurrent[p.id] === optionIndex).length;
+  const { answeredCount, countFor } = summarizeAnswers(
+    players,
+    answersForCurrent,
+    current?.options.length ?? 0
+  );
 
   // 1. save the state first, so a student who refreshes can recover it
   // 2. then notify the students
@@ -267,7 +270,7 @@ const LiveHostPage = () => {
           {players.map((p) => (
             <li key={p.id}>
               {p.name}
-              {isOpen && p.id in answersForCurrent ? " ✓" : ""}
+              {isOpen && Object.hasOwn(answersForCurrent, p.id) ? " ✓" : ""}
             </li>
           ))}
         </ul>
