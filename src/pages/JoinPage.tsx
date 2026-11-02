@@ -1,7 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { supabase } from "../lib/supabase";
-import { joinedSessionsSchema, participantSchema } from "../schemas";
-import usePresence from "../hooks/usePresence";
+import {
+    joinedSessionsSchema,
+    participantSchema,
+    questionEventSchema,
+} from "../schemas";
+import useLiveChannel from "../hooks/useLiveChannel";
+import type { QuestionEvent } from "../types";
 
 type Joined = { code: string, name: string }
 
@@ -13,9 +18,25 @@ const JoinPage = () => {
     const [joined, setJoined] = useState<Joined | null>(null);
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [current, setCurrent] = useState<QuestionEvent | null>(null);
 
-    // ما بندخل الغرفة إلا بعد ما ينجح الانضمام
-    const participants = usePresence(joined?.code, playerId, joined?.name, "player");
+    function handleBroadcast(event: string, payload: unknown) {
+        if (event !== "question") return;
+        // data from the channel is untrusted: validate before using it
+        const parsed = questionEventSchema.safeParse(payload);
+        if (!parsed.success) {
+            console.error(parsed.error.issues);
+            return;
+        }
+        setCurrent(parsed.data);
+    }
+    const { participants } = useLiveChannel(
+        joined?.code,
+        playerId,
+        joined?.name,
+        "player",
+        handleBroadcast
+    );
     const players = participants.filter((p) => p.role === "player");
     const hostConnected = participants.some((p) => p.role === "host");
 
@@ -65,14 +86,29 @@ const JoinPage = () => {
     if (joined) {
         return (
             <div>
-                <div className="card">
-                    <h1>أهلاً {joined.name} 👋</h1>
-                    <p>
-                        {hostConnected
-                            ? "بانتظار المعلم يبدأ الجلسة..."
-                            : "بانتظار المعلم يفتح الجلسة..."}
-                    </p>
-                </div>
+                {current ? (
+                    <div className="card">
+                        <p className="hint">
+                            السؤال {current.index + 1} من {current.total}
+                        </p>
+                        <h2>{current.question.text}</h2>
+                        <ul className="options">
+                            {current.question.options.map((option, i) => (
+                                <li key={i}>{option}</li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : (
+                    <div className="card">
+                        <h1>أهلاً {joined.name} 👋</h1>
+                        <p>
+                            {hostConnected
+                                ? "بانتظار المعلم يبدأ الأسئلة..."
+                                : "بانتظار المعلم يفتح الجلسة..."}
+                        </p>
+                    </div>
+                )}
+
                 <h2>المتصلون ({players.length})</h2>
                 <ul>
                     {players.map((p) => (

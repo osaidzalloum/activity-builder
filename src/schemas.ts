@@ -88,3 +88,10 @@ export const participantSchema = z.object({
 });
 
 export const publicQuestionSchema = mcqQuestionSchema.omit({ correctIndex: true });
+
+export const questionEventSchema = z.object({
+  index: z.number().int().min(0),
+  total: z.number().int().min(1),
+  startedAt: z.number(),
+  question: publicQuestionSchema,
+});
