@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_SNAPSHOT, parseHostSnapshot, serializeHostSnapshot } from "./hostSnapshot";
+import { emptySnapshot, parseHostSnapshot, serializeHostSnapshot } from "./hostSnapshot";
 
 describe("hostSnapshot", () => {
   it("returns an empty snapshot when nothing is stored", () => {
-    expect(parseHostSnapshot(null)).toEqual(EMPTY_SNAPSHOT);
+    expect(parseHostSnapshot(null)).toEqual(emptySnapshot());
   });
 
   it("returns an empty snapshot for text that is not JSON", () => {
-    expect(parseHostSnapshot("{oops")).toEqual(EMPTY_SNAPSHOT);
+    expect(parseHostSnapshot("{oops")).toEqual(emptySnapshot());
   });
 
   it("returns an empty snapshot when the shape is wrong", () => {
-    expect(parseHostSnapshot(JSON.stringify({ answers: 5 }))).toEqual(EMPTY_SNAPSHOT);
+    expect(parseHostSnapshot(JSON.stringify({ answers: 5 }))).toEqual(emptySnapshot());
   });
 
   it("rejects a negative choice instead of keeping part of the data", () => {
@@ -20,7 +20,7 @@ describe("hostSnapshot", () => {
       scores: {},
     });
 
-    expect(parseHostSnapshot(raw)).toEqual(EMPTY_SNAPSHOT);
+    expect(parseHostSnapshot(raw)).toEqual(emptySnapshot());
   });
 
   it("restores exactly what was saved", () => {
@@ -30,5 +30,12 @@ describe("hostSnapshot", () => {
     };
 
     expect(parseHostSnapshot(serializeHostSnapshot(snapshot))).toEqual(snapshot);
+  });
+
+  it("never shares the empty snapshot between calls", () => {
+    const first = parseHostSnapshot(null);
+    first.scores[0] = { a: 1 };
+
+    expect(parseHostSnapshot(null)).toEqual({ answers: {}, scores: {} });
   });
 });

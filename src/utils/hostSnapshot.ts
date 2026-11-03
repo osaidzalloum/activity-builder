@@ -9,26 +9,26 @@ export const hostSnapshotSchema = z.object({
     // question index -> player id -> answer
     answers: z.record(z.string(), z.record(z.string(), receivedAnswerSchema)),
     // question index -> player id -> points
-    scores: z.record(z.string(), z.record(z.string(),z.number())),
+    scores: z.record(z.string(), z.record(z.string(), z.number())),
 });
 
 export type HostSnapshot = z.infer<typeof hostSnapshotSchema>;
 
-export const EMPTY_SNAPSHOT: HostSnapshot = { answers: {}, scores: {} };
+export const emptySnapshot = (): HostSnapshot => ({ answers: {}, scores: {} });
 
 // Storage can hold old, corrupt, or edited data: anything invalid becomes an empty snapshot.
 export function parseHostSnapshot(raw: string | null): HostSnapshot {
-    if (raw === null) return EMPTY_SNAPSHOT;
+    if (raw === null) return emptySnapshot();
 
     let json: unknown;
     try {
         json = JSON.parse(raw);
     } catch {
-        return EMPTY_SNAPSHOT;
+        return emptySnapshot();
     }
 
     const parsed = hostSnapshotSchema.safeParse(json);
-    return parsed.success ? parsed.data : EMPTY_SNAPSHOT;
+    return parsed.success ? parsed.data : emptySnapshot();
 }
 
 export function serializeHostSnapshot(snapshot: HostSnapshot): string {
