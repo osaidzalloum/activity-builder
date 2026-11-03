@@ -5,27 +5,24 @@ import { useAuth } from "../context/useAuth";
 import { QUESTION_TIME_LIMIT_MS } from "../constants";
 import { answerEventSchema, liveSessionSchema, questionsSchema } from "../schemas";
 import { buildLeaderboard } from "../utils/buildLeaderboard";
-import { scoreQuestion, sumScores, type ReceivedAnswer } from "../utils/scoreQuestion";
+import { scoreQuestion, sumScores } from "../utils/scoreQuestion";
 import { summarizeAnswers } from "../utils/summarizeAnswers";
 import { toPublicQuestion } from "../utils/toPublicQuestion";
-import useLiveChannel from "../hooks/useLiveChannel";
 import { buildRevealSummary } from "../utils/buildRevealSummary";
 import { buildFinalSummary } from "../utils/buildFinalSummary";
+import useLiveChannel from "../hooks/useLiveChannel";
+import useHostSnapshot from "../hooks/useHostSnapshot";
 import type {
+  FinalEvent,
   LiveSession,
   McqQuestion,
   Question,
   QuestionEvent,
   RevealEvent,
   SessionState,
-  FinalEvent,
 } from "../types";
 
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
-// question index -> player id -> answer
-type Answers = Record<number, Record<string, ReceivedAnswer>>;
-// question index -> player id -> points for that question
-type Scores = Record<number, Record<string, number>>;
 
 const LiveHostPage = () => {
   const { code } = useParams<{ code: string }>();
@@ -34,8 +31,8 @@ const LiveHostPage = () => {
   const [session, setSession] = useState<LiveSession | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
-  const [answers, setAnswers] = useState<Answers>({});
-  const [scores, setScores] = useState<Scores>({});
+  const [snapshot, setSnapshot] = useHostSnapshot(status === "ready" ? code : undefined);
+  const { answers, scores } = snapshot;
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -103,13 +100,20 @@ const LiveHostPage = () => {
     const { playerId, index, choice } = parsed.data;
 
     // accept answers only for the question that is currently open
-    const state = session?.state;
-    if (state?.status !== "question" || state.index !== index) return;
+    const currentState = session?.state;
+    if (currentState?.status !== "question" || currentState.index !== index) return;
 
-    setAnswers((prev) => {
-      const forQuestion = prev[index] ?? {};
+    // prev, not the closure: two answers arriving together must both survive
+    setSnapshot((prev) => {
+      const forQuestion = prev.answers[index] ?? {};
       if (Object.hasOwn(forQuestion, playerId)) return prev; // first answer wins
-      return { ...prev, [index]: { ...forQuestion, [playerId]: { choice, receivedAt } } };
+      return {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          [index]: { ...forQuestion, [playerId]: { choice, receivedAt } },
+        },
+      };
     });
   }
 
@@ -144,6 +148,7 @@ const LiveHostPage = () => {
   const state = session.state;
   const isOpen = state.status === "question";
   const isRevealed = state.status === "reveal";
+  const isFinished = state.status === "finished";
   const currentIndex = isOpen || isRevealed ? state.index : -1;
   const current = publicQuestions[currentIndex] ?? null;
   const currentLive = liveQuestions[currentIndex] ?? null;
@@ -228,10 +233,10 @@ const LiveHostPage = () => {
     if (state.status !== "question" || !currentLive) return;
     const { index, startedAt } = state;
     // the answers that arrived by the moment the teacher clicked
-    const snapshot = answers[index] ?? {};
+    const answersAtClick = answers[index] ?? {};
 
     const questionScores = scoreQuestion(
-      snapshot,
+      answersAtClick,
       currentLive.correctIndex,
       startedAt,
       QUESTION_TIME_LIMIT_MS
@@ -242,6 +247,7 @@ const LiveHostPage = () => {
     const nextBoard = buildLeaderboard(players, sumScores(nextScores));
     const { top, results } = buildRevealSummary(nextBoard, questionScores);
 
+    // the correct answer leaves the host only now, after answers are closed
     const payload: RevealEvent = {
       index,
       correctIndex: currentLive.correctIndex,
@@ -251,7 +257,10 @@ const LiveHostPage = () => {
     const moved = await changeState({ status: "reveal", index }, "reveal", payload, "question");
     if (!moved) return;
 
-    setScores(nextScores);
+    setSnapshot((prev) => ({
+      ...prev,
+      scores: { ...prev.scores, [index]: questionScores },
+    }));
   }
 
   async function handleFinish() {
@@ -261,8 +270,6 @@ const LiveHostPage = () => {
     const payload: FinalEvent = buildFinalSummary(board);
     await changeState({ status: "finished" }, "finished", payload, undefined, true);
   }
-
-  const isFinished = state.status === "finished";
 
   return (
     <div>
