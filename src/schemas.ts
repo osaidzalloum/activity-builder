@@ -59,6 +59,7 @@ export const sessionStateSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("reveal"),
     index: z.number().int().min(0),
+    startedAt: z.number(),
   }),
   z.object({ status: z.literal("finished") }),
 ]);

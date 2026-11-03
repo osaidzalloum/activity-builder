@@ -12,6 +12,7 @@ import { buildRevealSummary } from "../utils/buildRevealSummary";
 import { buildFinalSummary } from "../utils/buildFinalSummary";
 import useLiveChannel from "../hooks/useLiveChannel";
 import useHostSnapshot from "../hooks/useHostSnapshot";
+import useOnNewPlayers from "../hooks/useOnNewPlayers";
 import type {
   FinalEvent,
   LiveSession,
@@ -141,6 +142,44 @@ const LiveHostPage = () => {
     [liveQuestions]
   );
 
+  // a student who joined late or refreshed gets the current state again;
+  // students who already have it ignore the repeat
+  async function sendSync() {
+    if (!session) return;
+    const s = session.state;
+    if (s.status !== "question" && s.status !== "reveal") return;
+
+    const question = publicQuestions[s.index];
+    if (!question) return;
+
+    const questionEvent: QuestionEvent = {
+      index: s.index,
+      total: publicQuestions.length,
+      startedAt: s.startedAt,
+      question,
+    };
+    await send("question", questionEvent);
+
+    if (s.status === "reveal") {
+      const live = liveQuestions[s.index];
+      if (!live) return;
+      // rebuilt from the saved scores, so it works even after the host refreshed
+      const syncBoard = buildLeaderboard(players, sumScores(snapshot.scores));
+      const { top, results } = buildRevealSummary(syncBoard, snapshot.scores[s.index] ?? {});
+      const revealEvent: RevealEvent = {
+        index: s.index,
+        correctIndex: live.correctIndex,
+        top,
+        results,
+      };
+      await send("reveal", revealEvent);
+    }
+  }
+
+  useOnNewPlayers(
+    players.map((p) => p.id),
+    sendSync
+  );
   if (status === "loading") return <p>جاري التحميل...</p>;
   if (status === "not-found") return <p>الجلسة غير موجودة.</p>;
   if (status === "error" || !session) return <p>صار خطأ أثناء تحميل الجلسة.</p>;
@@ -254,7 +293,11 @@ const LiveHostPage = () => {
       top,
       results,
     };
-    const moved = await changeState({ status: "reveal", index }, "reveal", payload, "question");
+    const moved = await changeState({
+      status: "reveal",
+      index,
+      startedAt
+    }, "reveal", payload, "question");
     if (!moved) return;
 
     setSnapshot((prev) => ({

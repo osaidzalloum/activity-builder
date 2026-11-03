@@ -25,10 +25,14 @@ function JoinPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [current, setCurrent] = useState<QuestionEvent | null>(null);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [answer, setAnswer] = useState<{ index: number; choice: number } | null>(null);
   const [revealed, setRevealed] = useState<RevealEvent | null>(null);
   const [final, setFinal] = useState<FinalEvent | null>(null);
   const [answerError, setAnswerError] = useState("");
+
+  // derived, not stored: an answer belongs to its question,
+  // so a repeated or older event can never reset it
+  const selected = current && answer?.index === current.index ? answer.choice : null;
 
   // bring the player back after a refresh, but only if the session is still running
   useEffect(() => {
@@ -62,9 +66,10 @@ function JoinPage() {
         console.error(parsed.error.issues);
         return;
       }
-      setCurrent(parsed.data);
-      setSelected(null);
-      setRevealed(null);
+      const incoming = parsed.data;
+      // the host repeats the current question for late joiners: the same question changes
+      // nothing, and an older one never replaces a newer one
+      setCurrent((prev) => (prev && prev.index >= incoming.index ? prev : incoming));
       setAnswerError("");
     } else if (event === "reveal") {
       const parsed = revealEventSchema.safeParse(payload);
@@ -72,7 +77,9 @@ function JoinPage() {
         console.error(parsed.error.issues);
         return;
       }
-      setRevealed(parsed.data);
+      const incoming = parsed.data;
+      // the first reveal of a question wins, so a repeat can't change the rank on screen
+      setRevealed((prev) => (prev?.index === incoming.index ? prev : incoming));
     } else if (event === "finished") {
       const parsed = finalEventSchema.safeParse(payload);
       if (!parsed.success) {
@@ -129,14 +136,14 @@ function JoinPage() {
 
   async function handleChoose(choice: number) {
     if (!current || selected !== null) return;
-    setSelected(choice);
+    setAnswer({ index: current.index, choice });
     setAnswerError("");
 
     const payload: AnswerEvent = { playerId, index: current.index, choice };
     const sent = await send("answer", payload);
     if (!sent) {
       // let the student try again
-      setSelected(null);
+      setAnswer(null);
       setAnswerError("ما وصل جوابك، حاول مرة ثانية.");
     }
   }
