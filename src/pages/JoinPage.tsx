@@ -116,8 +116,11 @@ function JoinPage() {
   if (joined) {
     // the reveal belongs to the current question only
     const reveal = current && revealed?.index === current.index ? revealed : null;
+    // a player who joined after the board was built has no entry
+    const myResult = 
+      reveal && Object.hasOwn(reveal.results, playerId) ? reveal.results[playerId] : null;
 
-    return (
+     return (
       <div>
         {current ? (
           <div className="card play-container">
@@ -158,6 +161,27 @@ function JoinPage() {
                     ? "✅ إجابة صحيحة"
                     : "❌ إجابة خاطئة"}
               </p>
+            )}
+
+            {myResult && (
+              <p>
+                <strong>+{myResult.gained}</strong> نقطة · المجموع{" "}
+                <strong>{myResult.total}</strong> · المرتبة <strong>{myResult.rank}</strong>
+              </p>
+            )}
+
+            {reveal && reveal.top.length > 0 && (
+              <>
+                <h3>الأوائل</h3>
+                <ol className="leaderboard">
+                  {reveal.top.map((e, i) => (
+                    <li key={i}>
+                      <span>{e.rank}</span> <strong>{e.name}</strong>{" "}
+                      <span className="hint">{e.points}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
             )}
           </div>
         ) : (

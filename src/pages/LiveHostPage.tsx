@@ -9,6 +9,7 @@ import { scoreQuestion, sumScores, type ReceivedAnswer } from "../utils/scoreQue
 import { summarizeAnswers } from "../utils/summarizeAnswers";
 import { toPublicQuestion } from "../utils/toPublicQuestion";
 import useLiveChannel from "../hooks/useLiveChannel";
+import { buildRevealSummary } from "../utils/buildRevealSummary";
 import type {
   LiveSession,
   McqQuestion,
@@ -223,21 +224,29 @@ const LiveHostPage = () => {
     // the answers that arrived by the moment the teacher clicked
     const snapshot = answers[index] ?? {};
 
-    // the correct answer leaves the host only now, after answers are closed
-    const payload: RevealEvent = { index: currentIndex, correctIndex: currentLive.correctIndex };
-    const moved = await changeState(
-      { status: "reveal", index },
-      "reveal",
-      payload,
-      "question"
+    const questionScores = scoreQuestion(
+      snapshot,
+      currentLive.correctIndex,
+      startedAt,
+      QUESTION_TIME_LIMIT_MS
     );
+
+   // overwrite, don't add: a retry gives the same totals
+    const nextScores = { ...scores, [index]: questionScores };
+    const nextBoard = buildLeaderboard(players, sumScores(nextScores));
+    const { top, results } = buildRevealSummary(nextBoard, questionScores);
+
+    const payload: RevealEvent = { 
+      index: currentIndex, 
+      correctIndex: currentLive.correctIndex,
+      top,
+      results, 
+    };
+    const moved = await changeState({ status: "reveal", index }, "reveal", payload, "question");
     if (!moved) return;
 
     // overwrite, don't add: scoring the same question twice gives the same result
-    setScores((prev) => ({
-      ...prev,
-      [index]: scoreQuestion(snapshot, currentLive.correctIndex, startedAt, QUESTION_TIME_LIMIT_MS)
-    }))
+    setScores(nextScores);
   }
 
   return (
