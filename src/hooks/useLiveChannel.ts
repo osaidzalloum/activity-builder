@@ -6,13 +6,13 @@ import type { Participant } from "../types";
 
 type BroadcastHandler = (event: string, payload: unknown) => void;
 
-export default function useLiveChannel (
+export default function useLiveChannel(
     code: string | undefined,
     id: string | undefined,
     name: string | undefined,
     role: Participant["role"],
     onBroadcast?: BroadcastHandler,
-){
+) {
     const [participants, setParticipants] = useState<Participant[]>([]);
     const channelRef = useRef<RealtimeChannel | null>(null);
     const handlerRef = useRef(onBroadcast);
@@ -27,33 +27,37 @@ export default function useLiveChannel (
         if (!code || !id || !name) return;
 
         const channel = supabase.channel(`live:${code}`, {
-            config: { presence: { key: id } },
+            config: {
+                presence: { key: id },
+                // wait for the server to confirm each broadcast, so send() really means "delivered"
+                broadcast: { ack: true },
+            },
         });
         channelRef.current = channel;
 
         channel
-        .on("presence", { event: "sync" }, () => {
-            const all = Object.values(channel.presenceState()).flat();
-            const valid = all.flatMap((evtry) => {
-                const parsed = participantSchema.safeParse(evtry);
-                return parsed.success ? [parsed.data] : [];
+            .on("presence", { event: "sync" }, () => {
+                const all = Object.values(channel.presenceState()).flat();
+                const valid = all.flatMap((evtry) => {
+                    const parsed = participantSchema.safeParse(evtry);
+                    return parsed.success ? [parsed.data] : [];
+                });
+                setParticipants(valid);
+            })
+            .on("broadcast", { event: "*" }, ({ event, payload }) => {
+                handlerRef.current?.(event, payload);
+            })
+            .subscribe(async (status) => {
+                if (status === "SUBSCRIBED") {
+                    await channel.track({ id, name, role });
+                }
             });
-            setParticipants(valid);
-        })
-        .on("broadcast", { event: "*"}, ({ event, payload }) => {
-            handlerRef.current?.(event, payload);
-        })
-        .subscribe(async (status) => {
-            if (status === "SUBSCRIBED") {
-                await channel.track({ id, name, role });
-            }
-        });
         return () => {
             channelRef.current = null;
             supabase.removeChannel(channel);
         };
     }, [code, id, name, role]);
-    
+
     const send = useCallback(async (event: string, payload: unknown) => {
         const channel = channelRef.current;
         if (!channel) return false;
@@ -61,6 +65,6 @@ export default function useLiveChannel (
         return result === "ok";
     }, []);
 
-    return { participants, send};
+    return { participants, send };
 }
 

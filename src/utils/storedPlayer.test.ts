@@ -41,4 +41,22 @@ describe("storedPlayer", () => {
 
     expect(parseStoredPlayer(raw)?.name).toBe("Amy");
   });
+
+  it("restores the saved answer together with the player", () => {
+    const withAnswer = { ...valid, answer: { index: 2, choice: 1 } };
+
+    expect(parseStoredPlayer(serializeStoredPlayer(withAnswer))).toEqual(withAnswer);
+  });
+
+  it("still accepts a record saved before answers were stored", () => {
+    expect(parseStoredPlayer(JSON.stringify(valid))).toEqual(valid);
+  });
+
+  it.each([
+    ["a negative choice", { index: 0, choice: -1 }],
+    ["a fractional index", { index: 1.5, choice: 0 }],
+    ["a missing choice", { index: 0 }],
+  ])("returns null for an answer with %s", (_label, answer) => {
+    expect(parseStoredPlayer(JSON.stringify({ ...valid, answer }))).toBeNull();
+  });
 });

@@ -25,7 +25,9 @@ function JoinPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [current, setCurrent] = useState<QuestionEvent | null>(null);
-  const [answer, setAnswer] = useState<{ index: number; choice: number } | null>(null);
+  const [answer, setAnswer] = useState<{ index: number; choice: number } | null>(
+    () => stored?.answer ?? null
+  );
   const [revealed, setRevealed] = useState<RevealEvent | null>(null);
   const [final, setFinal] = useState<FinalEvent | null>(null);
   const [answerError, setAnswerError] = useState("");
@@ -130,22 +132,34 @@ function JoinPage() {
       return;
     }
 
+    // a new join starts clean: an answer from an earlier session must not leak in
+    setAnswer(null);
     saveStoredPlayer({ code, name: nameResult.data, playerId });
     setJoined({ code, name: nameResult.data });
   }
 
   async function handleChoose(choice: number) {
-    if (!current || selected !== null) return;
-    setAnswer({ index: current.index, choice });
+    if (!joined || !current || selected !== null) return;
+    const questionIndex = current.index;
+    setAnswer({ index: questionIndex, choice });
     setAnswerError("");
 
-    const payload: AnswerEvent = { playerId, index: current.index, choice };
+    const payload: AnswerEvent = { playerId, index: questionIndex, choice };
     const sent = await send("answer", payload);
     if (!sent) {
       // let the student try again
       setAnswer(null);
       setAnswerError("ما وصل جوابك، حاول مرة ثانية.");
+      return;
     }
+
+    // remember only answers the server confirmed, so a refresh shows what was really sent
+    saveStoredPlayer({
+      code: joined.code,
+      name: joined.name,
+      playerId,
+      answer: { index: questionIndex, choice },
+    });
   }
 
   function handleLeave() {
