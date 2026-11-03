@@ -10,6 +10,7 @@ import { summarizeAnswers } from "../utils/summarizeAnswers";
 import { toPublicQuestion } from "../utils/toPublicQuestion";
 import useLiveChannel from "../hooks/useLiveChannel";
 import { buildRevealSummary } from "../utils/buildRevealSummary";
+import { buildFinalSummary } from "../utils/buildFinalSummary";
 import type {
   LiveSession,
   McqQuestion,
@@ -17,6 +18,7 @@ import type {
   QuestionEvent,
   RevealEvent,
   SessionState,
+  FinalEvent,
 } from "../types";
 
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
@@ -170,21 +172,25 @@ const LiveHostPage = () => {
     newState: SessionState,
     event: string,
     payload: unknown,
-    onlyFrom?: SessionState["status"]
+    onlyFrom?: SessionState["status"],
+    ending = false
   ): Promise<boolean> {
     if (!session) return false;
     setBusy(true);
     setActionError("");
 
-    const base = supabase
+    const endedAt = ending ? new Date().toISOString() : null;
+
+    let query = supabase
       .from("live_sessions")
-      .update({ state: newState })
+      .update(endedAt ? { state: newState, ended_at: endedAt } : { state: newState })
       .eq("id", session.id);
 
-    const { data, error } = await (onlyFrom
-      ? base.eq("state->>status", onlyFrom)
-      : base
-    ).select("id");
+    if (onlyFrom) query = query.eq("state->>status", onlyFrom);
+    // a session can only be ended once
+    if (ending) query = query.is("ended_at", null);
+
+    const { data, error } = await query.select("id");
 
     if (error) {
       console.error(error);
@@ -198,7 +204,7 @@ const LiveHostPage = () => {
       setBusy(false);
       return false;
     }
-    setSession({ ...session, state: newState });
+    setSession({ ...session, state: newState, ended_at: endedAt ?? session.ended_at });
 
     const sent = await send(event, payload);
     if (!sent) setActionError("انحفظ التحديث بس البث للطلاب فشل.");
@@ -231,23 +237,32 @@ const LiveHostPage = () => {
       QUESTION_TIME_LIMIT_MS
     );
 
-   // overwrite, don't add: a retry gives the same totals
+    // overwrite, don't add: a retry gives the same totals
     const nextScores = { ...scores, [index]: questionScores };
     const nextBoard = buildLeaderboard(players, sumScores(nextScores));
     const { top, results } = buildRevealSummary(nextBoard, questionScores);
 
-    const payload: RevealEvent = { 
-      index: currentIndex, 
+    const payload: RevealEvent = {
+      index,
       correctIndex: currentLive.correctIndex,
       top,
-      results, 
+      results,
     };
     const moved = await changeState({ status: "reveal", index }, "reveal", payload, "question");
     if (!moved) return;
 
-    // overwrite, don't add: scoring the same question twice gives the same result
     setScores(nextScores);
   }
+
+  async function handleFinish() {
+    if (state.status === "finished" || state.status === "question") return;
+    if (!confirm("متأكد بدك تنهي الجلسة؟ الطلاب ما رح يقدروا ينضموا بعدها.")) return;
+
+    const payload: FinalEvent = buildFinalSummary(board);
+    await changeState({ status: "finished" }, "finished", payload, undefined, true);
+  }
+
+  const isFinished = state.status === "finished";
 
   return (
     <div>
@@ -267,7 +282,13 @@ const LiveHostPage = () => {
         </p>
       )}
 
-      {publicQuestions.length === 0 ? (
+      {isFinished ? (
+        <div className="card">
+          <h2>انتهت الجلسة 🎉</h2>
+          <p className="hint">الترتيب النهائي بالأسفل.</p>
+          <Link className="btn btn-primary" to="/">العودة لأنشطتي</Link>
+        </div>
+      ) : publicQuestions.length === 0 ? (
         <p className="error">هذا النشاط ما فيه أسئلة اختيار من متعدد.</p>
       ) : (
         <div className="card">
@@ -310,6 +331,11 @@ const LiveHostPage = () => {
               </button>
             ) : (
               currentIndex >= 0 && <p className="hint">هذا آخر سؤال.</p>
+            )}
+            {!isOpen && (
+              <button className="btn btn-delete" onClick={handleFinish} disabled={busy}>
+                أنهِ الجلسة
+              </button>
             )}
           </div>
           {actionError && <p className="error">{actionError}</p>}

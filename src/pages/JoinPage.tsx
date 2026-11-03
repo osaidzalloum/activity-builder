@@ -5,9 +5,10 @@ import {
   participantSchema,
   questionEventSchema,
   revealEventSchema,
+  finalEventSchema,
 } from "../schemas";
 import useLiveChannel from "../hooks/useLiveChannel";
-import type { AnswerEvent, QuestionEvent, RevealEvent } from "../types";
+import type { AnswerEvent, FinalEvent, QuestionEvent, RevealEvent } from "../types";
 
 type Joined = { code: string; name: string };
 
@@ -18,6 +19,7 @@ function JoinPage() {
   const [joined, setJoined] = useState<Joined | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [final, setFinal] = useState<FinalEvent | null>(null);
 
   const [current, setCurrent] = useState<QuestionEvent | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -43,6 +45,13 @@ function JoinPage() {
         return;
       }
       setRevealed(parsed.data);
+    } else if (event === "finished") {
+      const parsed = finalEventSchema.safeParse(payload);
+      if(!parsed.success) {
+        console.error(parsed.error.issues);
+        return;
+      }
+      setFinal(parsed.data);
     }
   }
 
@@ -114,13 +123,40 @@ function JoinPage() {
   }
 
   if (joined) {
+    if (final) {
+      const mine = Object.hasOwn(final.results, playerId) ? final.results[playerId] : null;
+
+      return (
+        <div className="card">
+          <h1>انتهت الجلسة 🎉</h1>
+          {mine && (
+            <p>
+              مجموعك <strong>{mine.total}</strong> · المرتبة <strong>{mine.rank}</strong>
+            </p>
+          )}
+          {final.top.length > 0 && (
+            <>
+            <h3>الأوائل</h3>
+            <ol className="leaderboard">
+              {final.top.map((e, i) => (
+                <li key={i}>
+                  <span>{e.rank}</span> <strong>{e.name}</strong>{" "}
+                  <span className="hint">{e.points}</span>
+                </li>
+              ))}
+            </ol>
+            </>
+          )}
+        </div> 
+      )
+    }
     // the reveal belongs to the current question only
     const reveal = current && revealed?.index === current.index ? revealed : null;
     // a player who joined after the board was built has no entry
-    const myResult = 
+    const myResult =
       reveal && Object.hasOwn(reveal.results, playerId) ? reveal.results[playerId] : null;
 
-     return (
+    return (
       <div>
         {current ? (
           <div className="card play-container">

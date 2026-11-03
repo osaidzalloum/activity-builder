@@ -103,22 +103,35 @@ export const answerEventSchema = z.object({
   choice: z.number().int().min(0).max(20),
 });
 
+const topListSchema = z
+  .array(
+    z.object({
+      name: z.string().max(50),
+      points: z.number(),
+      rank: z.number().int().min(1),
+    })
+  )
+  .max(5);
+
 export const revealEventSchema = z.object({
   index: z.number().int().min(0),
   correctIndex: z.number().int().min(0),
-  top: z
-    .array(
-      z.object({
-        name: z.string().max(50),
-        points: z.number(),
-        rank: z.number().int().min(1),
-      })
-    )
-    .max(5),
+  top: topListSchema,
   results: z.record(
     z.string(),
     z.object({
       gained: z.number(),
+      total: z.number(),
+      rank: z.number().int().min(1),
+    })
+  ),
+});
+
+export const finalEventSchema = z.object({
+  top: topListSchema,
+  results: z.record(
+    z.string(),
+    z.object({
       total: z.number(),
       rank: z.number().int().min(1),
     })
