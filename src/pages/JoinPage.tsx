@@ -1,30 +1,58 @@
-import { useState, type FormEvent } from "react";
-import { supabase } from "../lib/supabase";
+import { useEffect, useState, type FormEvent } from "react";
 import {
-  joinedSessionsSchema,
+  finalEventSchema,
   participantSchema,
   questionEventSchema,
   revealEventSchema,
-  finalEventSchema,
 } from "../schemas";
+import { checkSession } from "../lib/joinSession";
+import { clearStoredPlayer, loadStoredPlayer, saveStoredPlayer } from "../lib/playerStorage";
 import useLiveChannel from "../hooks/useLiveChannel";
 import type { AnswerEvent, FinalEvent, QuestionEvent, RevealEvent } from "../types";
 
 type Joined = { code: string; name: string };
 
 function JoinPage() {
-  const [playerId] = useState(() => crypto.randomUUID());
+  // read once: after a refresh the same player comes back with the same identity
+  const [stored] = useState(loadStoredPlayer);
+  const [playerId] = useState(() => stored?.playerId ?? crypto.randomUUID());
+  const [restoring, setRestoring] = useState(stored !== null);
+
   const [codeInput, setCodeInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [joined, setJoined] = useState<Joined | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [final, setFinal] = useState<FinalEvent | null>(null);
 
   const [current, setCurrent] = useState<QuestionEvent | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState<RevealEvent | null>(null);
+  const [final, setFinal] = useState<FinalEvent | null>(null);
   const [answerError, setAnswerError] = useState("");
+
+  // bring the player back after a refresh, but only if the session is still running
+  useEffect(() => {
+    if (!stored) return;
+    const { code: storedCode, name: storedName } = stored;
+    let ignore = false;
+
+    async function restore() {
+      const result = await checkSession(storedCode);
+      if (ignore) return;
+
+      if (result === "active") {
+        setJoined({ code: storedCode, name: storedName });
+      } else if (result === "not-found") {
+        // ended or gone: back to the form
+        clearStoredPlayer();
+      }
+      // on "error" keep the stored player, so the next refresh can try again
+      setRestoring(false);
+    }
+
+    restore();
+    return () => { ignore = true; };
+  }, [stored]);
 
   function handleBroadcast(event: string, payload: unknown) {
     // data from the channel is untrusted: validate before using it
@@ -47,11 +75,12 @@ function JoinPage() {
       setRevealed(parsed.data);
     } else if (event === "finished") {
       const parsed = finalEventSchema.safeParse(payload);
-      if(!parsed.success) {
+      if (!parsed.success) {
         console.error(parsed.error.issues);
         return;
       }
       setFinal(parsed.data);
+      clearStoredPlayer();
     }
   }
 
@@ -82,29 +111,19 @@ function JoinPage() {
     }
 
     setSubmitting(true);
-    const { data, error: rpcError } = await supabase.rpc("join_session", {
-      p_code: code,
-    });
+    const result = await checkSession(code);
     setSubmitting(false);
 
-    if (rpcError) {
-      console.error(rpcError);
+    if (result === "error") {
       setError("صار خطأ، حاول مرة ثانية.");
       return;
     }
-
-    // join_session returns an array (returns table)
-    const parsed = joinedSessionsSchema.safeParse(data);
-    if (!parsed.success) {
-      console.error(parsed.error.issues);
-      setError("صار خطأ، حاول مرة ثانية.");
-      return;
-    }
-    if (parsed.data.length === 0) {
+    if (result === "not-found") {
       setError("الكود غير صحيح، أو الجلسة انتهت.");
       return;
     }
 
+    saveStoredPlayer({ code, name: nameResult.data, playerId });
     setJoined({ code, name: nameResult.data });
   }
 
@@ -122,6 +141,14 @@ function JoinPage() {
     }
   }
 
+  function handleLeave() {
+    clearStoredPlayer();
+    // a reload gives the next player on this device a fresh identity
+    window.location.reload();
+  }
+
+  if (restoring) return <p>جاري استعادة جلستك...</p>;
+
   if (joined) {
     if (final) {
       const mine = Object.hasOwn(final.results, playerId) ? final.results[playerId] : null;
@@ -136,20 +163,22 @@ function JoinPage() {
           )}
           {final.top.length > 0 && (
             <>
-            <h3>الأوائل</h3>
-            <ol className="leaderboard">
-              {final.top.map((e, i) => (
-                <li key={i}>
-                  <span>{e.rank}</span> <strong>{e.name}</strong>{" "}
-                  <span className="hint">{e.points}</span>
-                </li>
-              ))}
-            </ol>
+              <h3>الأوائل</h3>
+              <ol className="leaderboard">
+                {final.top.map((e, i) => (
+                  <li key={i}>
+                    <span>{e.rank}</span> <strong>{e.name}</strong>{" "}
+                    <span className="hint">{e.points}</span>
+                  </li>
+                ))}
+              </ol>
             </>
           )}
-        </div> 
-      )
+          <button className="btn" onClick={handleLeave}>جلسة جديدة</button>
+        </div>
+      );
     }
+
     // the reveal belongs to the current question only
     const reveal = current && revealed?.index === current.index ? revealed : null;
     // a player who joined after the board was built has no entry
@@ -188,7 +217,9 @@ function JoinPage() {
             </ul>
 
             {answerError && <p className="error">{answerError}</p>}
-            {!reveal && selected !== null && <p className="hint">وصل جوابك، بانتظار المعلم...</p>}
+            {!reveal && selected !== null && (
+              <p className="hint">وصل جوابك، بانتظار المعلم...</p>
+            )}
             {reveal && (
               <p>
                 {selected === null
@@ -237,6 +268,8 @@ function JoinPage() {
             <li key={p.id}>{p.name}</li>
           ))}
         </ul>
+
+        <button className="btn" onClick={handleLeave}>اخرج من الجلسة</button>
       </div>
     );
   }
