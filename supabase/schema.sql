@@ -70,6 +70,7 @@ create policy "Owners can delete attempts for their activities"
   state jsonb not null default '{"status":"lobby"}',
   created_at timestamptz not null default now(),
   ended_at timestamptz,
+  scoring_mode text not null default 'fixed' check (scoring_mode in ('fixed', 'speed')),
   check (state->>'status' in ('lobby', 'question', 'reveal', 'finished'))
 );
 
@@ -153,3 +154,4 @@ $$;
 
 revoke all on function create_live_session(uuid) from public;
 grant execute on function create_live_session(uuid) to authenticated;
+

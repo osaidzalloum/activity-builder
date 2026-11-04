@@ -5,29 +5,32 @@ import { MAX_POINTS, MIN_CORRECT_POINTS } from "./calculateScore";
 const LIMIT = 20_000;
 
 describe("scoreQuestion", () => {
-  it("scores correct answers by speed and wrong answers as zero", () => {
-    const scores = scoreQuestion(
-      {
-        fast: { choice: 1, receivedAt: 1000 },
-        slow: { choice: 1, receivedAt: 1000 + LIMIT },
-        wrong: { choice: 0, receivedAt: 1000 },
-      },
-      1,
-      1000,
-      LIMIT
-    );
+  const answers = {
+    fast: { choice: 1, receivedAt: 1000 },
+    slow: { choice: 1, receivedAt: 1000 + LIMIT },
+    wrong: { choice: 0, receivedAt: 1000 },
+  };
+
+  it("in speed mode scores correct answers by speed and wrong answers as zero", () => {
+    const scores = scoreQuestion(answers, 1, 1000, LIMIT, "speed");
 
     expect(scores).toEqual({ fast: MAX_POINTS, slow: MIN_CORRECT_POINTS, wrong: 0 });
   });
 
+  it("in fixed mode gives every correct answer the same points", () => {
+    const scores = scoreQuestion(answers, 1, 1000, LIMIT, "fixed");
+
+    expect(scores).toEqual({ fast: MAX_POINTS, slow: MAX_POINTS, wrong: 0 });
+  });
+
   it("returns an empty result when nobody answered", () => {
-    expect(scoreQuestion({}, 0, 1000, LIMIT)).toEqual({});
+    expect(scoreQuestion({}, 0, 1000, LIMIT, "speed")).toEqual({});
   });
 
   it("keeps a player whose id is __proto__", () => {
-    const answers = Object.fromEntries([["__proto__", { choice: 0, receivedAt: 0 }]]);
+    const withProto = Object.fromEntries([["__proto__", { choice: 0, receivedAt: 0 }]]);
 
-    const scores = scoreQuestion(answers, 0, 0, LIMIT);
+    const scores = scoreQuestion(withProto, 0, 0, LIMIT, "fixed");
 
     expect(Object.hasOwn(scores, "__proto__")).toBe(true);
   });

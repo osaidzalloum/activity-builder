@@ -64,12 +64,15 @@ export const sessionStateSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("finished") }),
 ]);
 
+export const scoringModeSchema = z.enum(["fixed", "speed"]);
+
 export const liveSessionSchema = z.object({
   id: z.string(),
   activity_id: z.string(),
   host_id: z.string(),
   code: z.string(),
   state: sessionStateSchema,
+  scoring_mode: scoringModeSchema,
   created_at: z.string(),
   ended_at: z.string().nullable(),
 });
@@ -94,6 +97,7 @@ export const questionEventSchema = z.object({
   index: z.number().int().min(0),
   total: z.number().int().min(1),
   startedAt: z.number(),
+  scoring: scoringModeSchema,
   question: publicQuestionSchema,
 });
 

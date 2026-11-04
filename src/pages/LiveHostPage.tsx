@@ -13,6 +13,7 @@ import { buildFinalSummary } from "../utils/buildFinalSummary";
 import useLiveChannel from "../hooks/useLiveChannel";
 import useHostSnapshot from "../hooks/useHostSnapshot";
 import useOnNewPlayers from "../hooks/useOnNewPlayers";
+import { MAX_POINTS, MIN_CORRECT_POINTS } from "../utils/calculateScore";
 import type {
   FinalEvent,
   LiveSession,
@@ -21,6 +22,7 @@ import type {
   QuestionEvent,
   RevealEvent,
   SessionState,
+  ScoringMode
 } from "../types";
 
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
@@ -156,6 +158,7 @@ const LiveHostPage = () => {
       index: s.index,
       total: publicQuestions.length,
       startedAt: s.startedAt,
+      scoring: session.scoring_mode,
       question,
     };
     await send("question", questionEvent);
@@ -185,6 +188,7 @@ const LiveHostPage = () => {
   if (status === "error" || !session) return <p>صار خطأ أثناء تحميل الجلسة.</p>;
 
   const state = session.state;
+  const scoringMode = session.scoring_mode;
   const isOpen = state.status === "question";
   const isRevealed = state.status === "reveal";
   const isFinished = state.status === "finished";
@@ -256,6 +260,29 @@ const LiveHostPage = () => {
     return true;
   }
 
+  async function handleScoringChange(mode: ScoringMode) {
+    if (!session || session.state.status !== "lobby") return;
+    setBusy(true);
+    setActionError("");
+
+    // only while the session is still in the lobby: the mode cannot change once scoring started
+    const { data, error } = await supabase
+      .from("live_sessions")
+      .update({ scoring_mode: mode })
+      .eq("id", session.id)
+      .eq("state->>status", "lobby")
+      .select("id");
+
+    if (error || !data || data.length === 0) {
+      console.error(error);
+      setActionError("ما قدرنا نغيّر طريقة النقاط.");
+      setBusy(false);
+      return;
+    }
+    setSession({ ...session, scoring_mode: mode });
+    setBusy(false);
+  }
+
   function handleNext() {
     if (!hasMore) return;
     const startedAt = Date.now();
@@ -263,6 +290,7 @@ const LiveHostPage = () => {
       index: nextIndex,
       total: publicQuestions.length,
       startedAt,
+      scoring: scoringMode,
       question: publicQuestions[nextIndex],
     };
     changeState({ status: "question", index: nextIndex, startedAt }, "question", payload);
@@ -278,7 +306,8 @@ const LiveHostPage = () => {
       answersAtClick,
       currentLive.correctIndex,
       startedAt,
-      QUESTION_TIME_LIMIT_MS
+      QUESTION_TIME_LIMIT_MS,
+      scoringMode,
     );
 
     // overwrite, don't add: a retry gives the same totals
@@ -363,6 +392,33 @@ const LiveHostPage = () => {
             </>
           ) : (
             <p>لسا ما بدأت الأسئلة.</p>
+          )}
+          {state.status === "lobby" ? (
+            <fieldset className="scoring" disabled={busy}>
+              <legend>طريقة النقاط</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="scoring"
+                  checked={scoringMode === "fixed"}
+                  onChange={() => handleScoringChange("fixed")}
+                />{" "}
+                ثابتة: كل إجابة صحيحة {MAX_POINTS} نقطة
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="scoring"
+                  checked={scoringMode === "speed"}
+                  onChange={() => handleScoringChange("speed")}
+                />{" "}
+                مع مكافأة سرعة: من {MIN_CORRECT_POINTS} إلى {MAX_POINTS} حسب سرعة الإجابة
+              </label>
+            </fieldset>
+          ) : (
+            <p className="hint">
+              النقاط: {scoringMode === "fixed" ? "ثابتة" : "مع مكافأة سرعة"}
+            </p>
           )}
 
           <div className="actions">

@@ -1,4 +1,5 @@
 import { calculateScore } from "./calculateScore";
+import type { ScoringMode } from "../types";
 
 export type ReceivedAnswer = { choice: number; receivedAt: number };
 
@@ -10,11 +11,17 @@ export function scoreQuestion(
     correctIndex: number,
     startedAt: number,
     timeLimitMs: number,
+    mode: ScoringMode
 ): Record<string, number> {
     return Object.fromEntries(
         Object.entries(answers).map(([playerId, answer]) => [
             playerId,
-            calculateScore(answer.choice === correctIndex, answer.receivedAt - startedAt, timeLimitMs),
+            calculateScore(
+                answer.choice === correctIndex, 
+                answer.receivedAt - startedAt, 
+                timeLimitMs,
+                mode
+            ),
         ])
     );
 }
