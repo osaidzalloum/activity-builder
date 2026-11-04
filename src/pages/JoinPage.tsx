@@ -214,6 +214,9 @@ function JoinPage() {
               السؤال {current.index + 1} من {current.total}
             </p>
             <h2>{current.question.text}</h2>
+            {current.scoring === "speed" && !reveal && (
+              <p className="hint">⚡ كلما جاوبت أسرع، كسبت نقاط أكثر</p>
+            )}
             <ul className="options">
               {current.question.options.map((option, i) => {
                 let className = "play-option";
