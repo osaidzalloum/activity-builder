@@ -22,10 +22,22 @@ import type {
   QuestionEvent,
   RevealEvent,
   SessionState,
-  ScoringMode
+  ScoringMode,
+  SessionResults
 } from "../types";
-
+import { buildSessionResults } from "../utils/buildSessionResults";
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
+
+type StateChange = {
+  newState: SessionState;
+  event: string;
+  payload: unknown;
+  // makes the move conditional in the database
+  onlyFrom?: SessionState["status"];
+  ending?: boolean;
+  // saved in the same request as the new state
+  results?: SessionResults;
+};
 
 const LiveHostPage = () => {
   const { code } = useParams<{ code: string }>();
@@ -189,6 +201,7 @@ const LiveHostPage = () => {
 
   const state = session.state;
   const scoringMode = session.scoring_mode;
+  const savedNames = session.results.players;
   const isOpen = state.status === "question";
   const isRevealed = state.status === "reveal";
   const isFinished = state.status === "finished";
@@ -216,23 +229,26 @@ const LiveHostPage = () => {
   // 1. save the state first, so a student who refreshes can recover it
   // 2. then notify the students
   // onlyFrom makes the move conditional in the database
-  async function changeState(
-    newState: SessionState,
-    event: string,
-    payload: unknown,
-    onlyFrom?: SessionState["status"],
-    ending = false
-  ): Promise<boolean> {
+  async function changeState({
+    newState,
+    event,
+    payload,
+    onlyFrom,
+    ending = false,
+    results,
+  }: StateChange): Promise<boolean> {
     if (!session) return false;
     setBusy(true);
     setActionError("");
 
     const endedAt = ending ? new Date().toISOString() : null;
+    const changes = {
+      state: newState,
+      ...(results ? { results } : {}),
+      ...(endedAt ? { ended_at: endedAt } : {}),
+    };
 
-    let query = supabase
-      .from("live_sessions")
-      .update(endedAt ? { state: newState, ended_at: endedAt } : { state: newState })
-      .eq("id", session.id);
+    let query = supabase.from("live_sessions").update(changes).eq("id", session.id);
 
     if (onlyFrom) query = query.eq("state->>status", onlyFrom);
     // a session can only be ended once
@@ -252,7 +268,12 @@ const LiveHostPage = () => {
       setBusy(false);
       return false;
     }
-    setSession({ ...session, state: newState, ended_at: endedAt ?? session.ended_at });
+    setSession({
+      ...session,
+      state: newState,
+      results: results ?? session.results,
+      ended_at: endedAt ?? session.ended_at,
+    });
 
     const sent = await send(event, payload);
     if (!sent) setActionError("انحفظ التحديث بس البث للطلاب فشل.");
@@ -293,7 +314,11 @@ const LiveHostPage = () => {
       scoring: scoringMode,
       question: publicQuestions[nextIndex],
     };
-    changeState({ status: "question", index: nextIndex, startedAt }, "question", payload);
+    changeState({
+      newState: { status: "question", index: nextIndex, startedAt },
+      event: "question",
+      payload,
+    });
   }
 
   async function handleReveal() {
@@ -313,20 +338,34 @@ const LiveHostPage = () => {
     // overwrite, don't add: a retry gives the same totals
     const nextScores = { ...scores, [index]: questionScores };
     const nextBoard = buildLeaderboard(players, sumScores(nextScores));
-    const { top, results } = buildRevealSummary(nextBoard, questionScores);
+    // what each student sees: their own gain, total and rank, plus the top five
+    const { top, results: playerResults } = buildRevealSummary(nextBoard, questionScores);
 
     // the correct answer leaves the host only now, after answers are closed
     const payload: RevealEvent = {
       index,
       correctIndex: currentLive.correctIndex,
       top,
-      results,
+      results: playerResults,
     };
+
+    // what is saved: the whole record is rebuilt from what the host holds,
+    // so a retry overwrites instead of adding
+    const sessionResults = buildSessionResults(
+      liveQuestions,
+      answers,
+      nextScores,
+      players,
+      savedNames
+    );
+
     const moved = await changeState({
-      status: "reveal",
-      index,
-      startedAt
-    }, "reveal", payload, "question");
+      newState: { status: "reveal", index, startedAt },
+      event: "reveal",
+      payload,
+      onlyFrom: "question",
+      results: sessionResults,
+    });
     if (!moved) return;
 
     setSnapshot((prev) => ({
@@ -340,7 +379,15 @@ const LiveHostPage = () => {
     if (!confirm("متأكد بدك تنهي الجلسة؟ الطلاب ما رح يقدروا ينضموا بعدها.")) return;
 
     const payload: FinalEvent = buildFinalSummary(board);
-    await changeState({ status: "finished" }, "finished", payload, undefined, true);
+    // refresh the names of whoever is connected at the end
+    const results = buildSessionResults(liveQuestions, answers, scores, players, savedNames);
+    await changeState({
+      newState: { status: "finished" },
+      event: "finished",
+      payload,
+      ending: true,
+      results,
+    });
   }
 
   return (

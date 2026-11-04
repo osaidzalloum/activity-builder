@@ -66,6 +66,25 @@ export const sessionStateSchema = z.discriminatedUnion("status", [
 
 export const scoringModeSchema = z.enum(["fixed", "speed"]);
 
+export const sessionResultsSchema = z.object({
+  // player id -> name
+  players: z.record(z.string(), z.string()),
+  // the questions that were revealed, in order
+  questions: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string(),
+      options: z.array(z.string()),
+      correctIndex: z.number().int().min(0),
+      // player id -> what they chose and what it earned
+      answers: z.record(
+        z.string(),
+        z.object({ choice: z.number().int().min(0), points: z.number() })
+      ),
+    })
+  ),
+});
+
 export const liveSessionSchema = z.object({
   id: z.string(),
   activity_id: z.string(),
@@ -73,6 +92,7 @@ export const liveSessionSchema = z.object({
   code: z.string(),
   state: sessionStateSchema,
   scoring_mode: scoringModeSchema,
+  results: sessionResultsSchema,
   created_at: z.string(),
   ended_at: z.string().nullable(),
 });
