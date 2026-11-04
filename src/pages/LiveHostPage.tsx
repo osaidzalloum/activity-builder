@@ -412,7 +412,12 @@ const LiveHostPage = () => {
         <div className="card">
           <h2>انتهت الجلسة 🎉</h2>
           <p className="hint">الترتيب النهائي بالأسفل.</p>
-          <Link className="btn btn-primary" to="/">العودة لأنشطتي</Link>
+          <div className="actions">
+            <Link className="btn btn-primary" to={`/live/${session.code}/review`}>
+              مراجعة النتائج
+            </Link>
+            <Link className="btn" to="/">العودة لأنشطتي</Link>
+          </div>
         </div>
       ) : publicQuestions.length === 0 ? (
         <p className="error">هذا النشاط ما فيه أسئلة اختيار من متعدد.</p>
