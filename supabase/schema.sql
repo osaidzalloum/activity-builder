@@ -71,6 +71,7 @@ create policy "Owners can delete attempts for their activities"
   created_at timestamptz not null default now(),
   ended_at timestamptz,
   scoring_mode text not null default 'fixed' check (scoring_mode in ('fixed', 'speed')),
+  results jsonb not null default '{"players":{},"questions":[]}',
   check (state->>'status' in ('lobby', 'question', 'reveal', 'finished'))
 );
 
