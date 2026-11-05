@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/useAuth";
@@ -13,12 +13,11 @@ import { buildFinalSummary } from "../utils/buildFinalSummary";
 import useLiveChannel from "../hooks/useLiveChannel";
 import useHostSnapshot from "../hooks/useHostSnapshot";
 import useOnNewPlayers from "../hooks/useOnNewPlayers";
+import useLiveSession from "../hooks/useLiveSession";
 import { Leaderboard, ScoringPicker, PlayerList } from "../components/live";
 import type {
   FinalEvent,
-  LiveSession,
   McqQuestion,
-  Question,
   QuestionEvent,
   RevealEvent,
   SessionState,
@@ -26,7 +25,6 @@ import type {
   SessionResults
 } from "../types";
 import { buildSessionResults } from "../utils/buildSessionResults";
-type LoadStatus = "loading" | "ready" | "not-found" | "error";
 
 type StateChange = {
   newState: SessionState;
@@ -43,66 +41,13 @@ const LiveHostPage = () => {
   const { code } = useParams<{ code: string }>();
   const { user } = useAuth();
 
-  const [session, setSession] = useState<LiveSession | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [status, setStatus] = useState<LoadStatus>("loading");
+  const { session, setSession, questions, status } = useLiveSession(code);
   const [snapshot, setSnapshot] = useHostSnapshot(status === "ready" ? code : undefined);
   const { answers, scores } = snapshot;
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  useEffect(() => {
-    let ignore = false;
-
-    async function load() {
-      const { data, error } = await supabase
-        .from("live_sessions")
-        .select("*")
-        .eq("code", code ?? "")
-        .maybeSingle();
-
-      if (ignore) return;
-      if (error || !data) {
-        if (error) console.error(error);
-        setStatus(error ? "error" : "not-found");
-        return;
-      }
-
-      const parsedSession = liveSessionSchema.safeParse(data);
-      if (!parsedSession.success) {
-        console.error(parsedSession.error.issues);
-        setStatus("error");
-        return;
-      }
-
-      const { data: activity, error: activityError } = await supabase
-        .from("activities")
-        .select("questions")
-        .eq("id", parsedSession.data.activity_id)
-        .maybeSingle();
-
-      if (ignore) return;
-      if (activityError || !activity) {
-        console.error(activityError);
-        setStatus("error");
-        return;
-      }
-
-      const parsedQuestions = questionsSchema.safeParse(activity.questions);
-      if (!parsedQuestions.success) {
-        console.error(parsedQuestions.error.issues);
-        setStatus("error");
-        return;
-      }
-
-      setSession(parsedSession.data);
-      setQuestions(parsedQuestions.data);
-      setStatus("ready");
-    }
-
-    load();
-    return () => { ignore = true; };
-  }, [code]);
+  
 
   function handleBroadcast(event: string, payload: unknown) {
     if (event !== "answer") return;
