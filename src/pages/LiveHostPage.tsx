@@ -1,340 +1,43 @@
-import { useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { useAuth } from "../context/useAuth";
-import { QUESTION_TIME_LIMIT_MS } from "../constants";
-import { answerEventSchema, liveSessionSchema, questionsSchema } from "../schemas";
-import { buildLeaderboard } from "../utils/buildLeaderboard";
-import { scoreQuestion, sumScores } from "../utils/scoreQuestion";
-import { summarizeAnswers } from "../utils/summarizeAnswers";
-import { toPublicQuestion } from "../utils/toPublicQuestion";
-import { buildRevealSummary } from "../utils/buildRevealSummary";
-import { buildFinalSummary } from "../utils/buildFinalSummary";
-import useLiveChannel from "../hooks/useLiveChannel";
-import useHostSnapshot from "../hooks/useHostSnapshot";
-import useOnNewPlayers from "../hooks/useOnNewPlayers";
+import { Link, useParams } from "react-router-dom";
+import { Leaderboard, PlayerList, ScoringPicker } from "../components/live";
+import useHostGame from "../hooks/useHostGame";
 import useLiveSession from "../hooks/useLiveSession";
-import { Leaderboard, ScoringPicker, PlayerList } from "../components/live";
-import type {
-  FinalEvent,
-  McqQuestion,
-  QuestionEvent,
-  RevealEvent,
-  SessionState,
-  ScoringMode,
-  SessionResults
-} from "../types";
-import { buildSessionResults } from "../utils/buildSessionResults";
+import type { LiveSession, Question } from "../types";
 
-type StateChange = {
-  newState: SessionState;
-  event: string;
-  payload: unknown;
-  // makes the move conditional in the database
-  onlyFrom?: SessionState["status"];
-  ending?: boolean;
-  // saved in the same request as the new state
-  results?: SessionResults;
-};
-
-const LiveHostPage = () => {
-  const { code } = useParams<{ code: string }>();
-  const { user } = useAuth();
-
-  const { session, setSession, questions, status } = useLiveSession(code);
-  const [snapshot, setSnapshot] = useHostSnapshot(status === "ready" ? code : undefined);
-  const { answers, scores } = snapshot;
-  const [busy, setBusy] = useState(false);
-  const [actionError, setActionError] = useState("");
-
-  
-
-  function handleBroadcast(event: string, payload: unknown) {
-    if (event !== "answer") return;
-    // read the clock once, outside the state updater (updaters must stay pure)
-    const receivedAt = Date.now();
-
-    // students are untrusted: validate every answer
-    const parsed = answerEventSchema.safeParse(payload);
-    if (!parsed.success) return;
-    const { playerId, index, choice } = parsed.data;
-
-    // accept answers only for the question that is currently open
-    const currentState = session?.state;
-    if (currentState?.status !== "question" || currentState.index !== index) return;
-
-    // prev, not the closure: two answers arriving together must both survive
-    setSnapshot((prev) => {
-      const forQuestion = prev.answers[index] ?? {};
-      if (Object.hasOwn(forQuestion, playerId)) return prev; // first answer wins
-      return {
-        ...prev,
-        answers: {
-          ...prev.answers,
-          [index]: { ...forQuestion, [playerId]: { choice, receivedAt } },
-        },
-      };
-    });
-  }
-
-  const { participants, send } = useLiveChannel(
-    status === "ready" ? code : undefined,
-    user?.id,
-    "Host",
-    "host",
-    handleBroadcast
-  );
-  const players = participants.filter((p) => p.role === "player");
-
-  // live sessions support multiple choice only (for now)
-  const liveQuestions = useMemo(
-    () => questions.filter((q): q is McqQuestion => q.type === "mcq"),
-    [questions]
-  );
-  // same order and length as liveQuestions, but without the answers
-  const publicQuestions = useMemo(
-    () =>
-      liveQuestions.flatMap((q) => {
-        const publicQuestion = toPublicQuestion(q);
-        return publicQuestion ? [publicQuestion] : [];
-      }),
-    [liveQuestions]
-  );
-
-  // a student who joined late or refreshed gets the current state again;
-  // students who already have it ignore the repeat
-  async function sendSync() {
-    if (!session) return;
-    const s = session.state;
-    if (s.status !== "question" && s.status !== "reveal") return;
-
-    const question = publicQuestions[s.index];
-    if (!question) return;
-
-    const questionEvent: QuestionEvent = {
-      index: s.index,
-      total: publicQuestions.length,
-      startedAt: s.startedAt,
-      scoring: session.scoring_mode,
-      question,
-    };
-    await send("question", questionEvent);
-
-    if (s.status === "reveal") {
-      const live = liveQuestions[s.index];
-      if (!live) return;
-      // rebuilt from the saved scores, so it works even after the host refreshed
-      const syncBoard = buildLeaderboard(players, sumScores(snapshot.scores));
-      const { top, results } = buildRevealSummary(syncBoard, snapshot.scores[s.index] ?? {});
-      const revealEvent: RevealEvent = {
-        index: s.index,
-        correctIndex: live.correctIndex,
-        top,
-        results,
-      };
-      await send("reveal", revealEvent);
-    }
-  }
-
-  useOnNewPlayers(
-    players.map((p) => p.id),
-    sendSync
-  );
-  if (status === "loading") return <p>جاري التحميل...</p>;
-  if (status === "not-found") return <p>الجلسة غير موجودة.</p>;
-  if (status === "error" || !session) return <p>صار خطأ أثناء تحميل الجلسة.</p>;
-
-  const state = session.state;
-  const scoringMode = session.scoring_mode;
-  const savedNames = session.results.players;
-  const isOpen = state.status === "question";
-  const isRevealed = state.status === "reveal";
-  const isFinished = state.status === "finished";
-  const currentIndex = isOpen || isRevealed ? state.index : -1;
-  const current = publicQuestions[currentIndex] ?? null;
-  const currentLive = liveQuestions[currentIndex] ?? null;
-  const nextIndex = currentIndex + 1;
-  const hasMore = nextIndex < publicQuestions.length;
-  const skipped = questions.length - liveQuestions.length;
-
-  const answersForCurrent = answers[currentIndex] ?? {};
-  const answeredIds = new Set<string>(isOpen ? Object.keys(answersForCurrent) : []);
-  const choices = Object.fromEntries(
-    Object.entries(answersForCurrent).map(([id, a]) => [id, a.choice])
-  );
-  const { answeredCount, countFor } = summarizeAnswers(
+// Only the drawing: the logic lives in useHostGame
+function LiveHost({
+  initialSession,
+  questions,
+}: {
+  initialSession: LiveSession;
+  questions: Question[];
+}) {
+  const {
+    session,
+    scoringMode,
+    busy,
+    actionError,
     players,
-    choices,
-    current?.options.length ?? 0
-  );
-
-  // totals and ranking are derived: nothing here can be counted twice
-  const board = buildLeaderboard(players, sumScores(scores));
-  const hasScores = Object.keys(scores).length > 0;
-
-  // 1. save the state first, so a student who refreshes can recover it
-  // 2. then notify the students
-  // onlyFrom makes the move conditional in the database
-  async function changeState({
-    newState,
-    event,
-    payload,
-    onlyFrom,
-    ending = false,
-    results,
-  }: StateChange): Promise<boolean> {
-    if (!session) return false;
-    setBusy(true);
-    setActionError("");
-
-    const endedAt = ending ? new Date().toISOString() : null;
-    const changes = {
-      state: newState,
-      ...(results ? { results } : {}),
-      ...(endedAt ? { ended_at: endedAt } : {}),
-    };
-
-    let query = supabase.from("live_sessions").update(changes).eq("id", session.id);
-
-    if (onlyFrom) query = query.eq("state->>status", onlyFrom);
-    // a session can only be ended once
-    if (ending) query = query.is("ended_at", null);
-
-    const { data, error } = await query.select("id");
-
-    if (error) {
-      console.error(error);
-      setActionError(`ما قدرنا نحدّث الجلسة: ${error.message}`);
-      setBusy(false);
-      return false;
-    }
-    if (!data || data.length === 0) {
-      console.error("Update changed 0 rows: blocked by RLS or by the condition");
-      setActionError("ما قدرنا نحدّث الجلسة: ما في صلاحية للتعديل.");
-      setBusy(false);
-      return false;
-    }
-    setSession({
-      ...session,
-      state: newState,
-      results: results ?? session.results,
-      ended_at: endedAt ?? session.ended_at,
-    });
-
-    const sent = await send(event, payload);
-    if (!sent) setActionError("انحفظ التحديث بس البث للطلاب فشل.");
-    setBusy(false);
-    return true;
-  }
-
-  async function handleScoringChange(mode: ScoringMode) {
-    if (!session || session.state.status !== "lobby") return;
-    setBusy(true);
-    setActionError("");
-
-    // only while the session is still in the lobby: the mode cannot change once scoring started
-    const { data, error } = await supabase
-      .from("live_sessions")
-      .update({ scoring_mode: mode })
-      .eq("id", session.id)
-      .eq("state->>status", "lobby")
-      .select("id");
-
-    if (error || !data || data.length === 0) {
-      console.error(error);
-      setActionError("ما قدرنا نغيّر طريقة النقاط.");
-      setBusy(false);
-      return;
-    }
-    setSession({ ...session, scoring_mode: mode });
-    setBusy(false);
-  }
-
-  function handleNext() {
-    if (!hasMore) return;
-    const startedAt = Date.now();
-    const payload: QuestionEvent = {
-      index: nextIndex,
-      total: publicQuestions.length,
-      startedAt,
-      scoring: scoringMode,
-      question: publicQuestions[nextIndex],
-    };
-    changeState({
-      newState: { status: "question", index: nextIndex, startedAt },
-      event: "question",
-      payload,
-    });
-  }
-
-  async function handleReveal() {
-    if (state.status !== "question" || !currentLive) return;
-    const { index, startedAt } = state;
-    // the answers that arrived by the moment the teacher clicked
-    const answersAtClick = answers[index] ?? {};
-
-    const questionScores = scoreQuestion(
-      answersAtClick,
-      currentLive.correctIndex,
-      startedAt,
-      QUESTION_TIME_LIMIT_MS,
-      scoringMode,
-    );
-
-    // overwrite, don't add: a retry gives the same totals
-    const nextScores = { ...scores, [index]: questionScores };
-    const nextBoard = buildLeaderboard(players, sumScores(nextScores));
-    // what each student sees: their own gain, total and rank, plus the top five
-    const { top, results: playerResults } = buildRevealSummary(nextBoard, questionScores);
-
-    // the correct answer leaves the host only now, after answers are closed
-    const payload: RevealEvent = {
-      index,
-      correctIndex: currentLive.correctIndex,
-      top,
-      results: playerResults,
-    };
-
-    // what is saved: the whole record is rebuilt from what the host holds,
-    // so a retry overwrites instead of adding
-    const sessionResults = buildSessionResults(
-      liveQuestions,
-      answers,
-      nextScores,
-      players,
-      savedNames
-    );
-
-    const moved = await changeState({
-      newState: { status: "reveal", index, startedAt },
-      event: "reveal",
-      payload,
-      onlyFrom: "question",
-      results: sessionResults,
-    });
-    if (!moved) return;
-
-    setSnapshot((prev) => ({
-      ...prev,
-      scores: { ...prev.scores, [index]: questionScores },
-    }));
-  }
-
-  async function handleFinish() {
-    if (state.status === "finished" || state.status === "question") return;
-    if (!confirm("متأكد بدك تنهي الجلسة؟ الطلاب ما رح يقدروا ينضموا بعدها.")) return;
-
-    const payload: FinalEvent = buildFinalSummary(board);
-    // refresh the names of whoever is connected at the end
-    const results = buildSessionResults(liveQuestions, answers, scores, players, savedNames);
-    await changeState({
-      newState: { status: "finished" },
-      event: "finished",
-      payload,
-      ending: true,
-      results,
-    });
-  }
+    board,
+    hasScores,
+    answeredIds,
+    isLobby,
+    isOpen,
+    isRevealed,
+    isFinished,
+    current,
+    currentLive,
+    currentIndex,
+    totalQuestions,
+    skipped,
+    hasMore,
+    answeredCount,
+    countFor,
+    handleScoringChange,
+    handleNext,
+    handleReveal,
+    handleFinish,
+  } = useHostGame(initialSession, questions);
 
   return (
     <div>
@@ -365,14 +68,14 @@ const LiveHostPage = () => {
             <Link className="btn" to="/">العودة لأنشطتي</Link>
           </div>
         </div>
-      ) : publicQuestions.length === 0 ? (
+      ) : totalQuestions === 0 ? (
         <p className="error">هذا النشاط ما فيه أسئلة اختيار من متعدد.</p>
       ) : (
         <div className="card">
           {current && currentLive ? (
             <>
               <p className="hint">
-                السؤال {currentIndex + 1} من {publicQuestions.length}
+                السؤال {currentIndex + 1} من {totalQuestions}
                 {" · "}
                 جاوب {answeredCount} من {players.length}
               </p>
@@ -391,7 +94,8 @@ const LiveHostPage = () => {
           ) : (
             <p>لسا ما بدأت الأسئلة.</p>
           )}
-          {state.status === "lobby" ? (
+
+          {isLobby ? (
             <ScoringPicker mode={scoringMode} disabled={busy} onChange={handleScoringChange} />
           ) : (
             <p className="hint">
@@ -434,9 +138,22 @@ const LiveHostPage = () => {
       )}
 
       <h2>المتصلون ({players.length})</h2>
-      <PlayerList players={players} answerdIds={answeredIds} />
+      <PlayerList players={players} answeredIds={answeredIds} />
     </div>
   );
+}
+
+// Loads the session first, so everything below can rely on it being there
+const LiveHostPage = () => {
+  const { code } = useParams<{ code: string }>();
+  const { session, questions, status } = useLiveSession(code);
+
+  if (status === "loading") return <p>جاري التحميل...</p>;
+  if (status === "not-found") return <p>الجلسة غير موجودة.</p>;
+  if (status === "error" || !session) return <p>صار خطأ أثناء تحميل الجلسة.</p>;
+
+  // key: a different session starts from a clean state
+  return <LiveHost key={session.id} initialSession={session} questions={questions} />;
 };
 
 export default LiveHostPage;

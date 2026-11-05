@@ -64,5 +64,5 @@ export default function useLiveSession(code: string | undefined) {
   }, [code]);
 
   // setSession is returned because the host page updates the session after each change
-  return { session, setSession, questions, status };
+  return { session, questions, status };
 }
