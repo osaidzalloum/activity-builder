@@ -13,7 +13,7 @@ import { buildFinalSummary } from "../utils/buildFinalSummary";
 import useLiveChannel from "../hooks/useLiveChannel";
 import useHostSnapshot from "../hooks/useHostSnapshot";
 import useOnNewPlayers from "../hooks/useOnNewPlayers";
-import { MAX_POINTS, MIN_CORRECT_POINTS } from "../utils/calculateScore";
+import { Leaderboard, ScoringPicker, PlayerList } from "../components/live";
 import type {
   FinalEvent,
   LiveSession,
@@ -213,6 +213,7 @@ const LiveHostPage = () => {
   const skipped = questions.length - liveQuestions.length;
 
   const answersForCurrent = answers[currentIndex] ?? {};
+  const answeredIds = new Set<string>(isOpen ? Object.keys(answersForCurrent) : []);
   const choices = Object.fromEntries(
     Object.entries(answersForCurrent).map(([id, a]) => [id, a.choice])
   );
@@ -446,27 +447,7 @@ const LiveHostPage = () => {
             <p>لسا ما بدأت الأسئلة.</p>
           )}
           {state.status === "lobby" ? (
-            <fieldset className="scoring" disabled={busy}>
-              <legend>طريقة النقاط</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="scoring"
-                  checked={scoringMode === "fixed"}
-                  onChange={() => handleScoringChange("fixed")}
-                />{" "}
-                ثابتة: كل إجابة صحيحة {MAX_POINTS} نقطة
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="scoring"
-                  checked={scoringMode === "speed"}
-                  onChange={() => handleScoringChange("speed")}
-                />{" "}
-                مع مكافأة سرعة: من {MIN_CORRECT_POINTS} إلى {MAX_POINTS} حسب سرعة الإجابة
-              </label>
-            </fieldset>
+            <ScoringPicker mode={scoringMode} disabled={busy} onChange={handleScoringChange} />
           ) : (
             <p className="hint">
               النقاط: {scoringMode === "fixed" ? "ثابتة" : "مع مكافأة سرعة"}
@@ -503,30 +484,12 @@ const LiveHostPage = () => {
       {hasScores && (
         <>
           <h2>لوحة الترتيب</h2>
-          <ol className="leaderboard">
-            {board.map((entry) => (
-              <li key={entry.id}>
-                <span>{entry.rank}</span> <strong>{entry.name}</strong>{" "}
-                <span className="hint">{entry.points}</span>
-              </li>
-            ))}
-          </ol>
+          <Leaderboard entries={board} />
         </>
       )}
 
       <h2>المتصلون ({players.length})</h2>
-      {players.length === 0 ? (
-        <p>لسا ما حدا انضم.</p>
-      ) : (
-        <ul>
-          {players.map((p) => (
-            <li key={p.id}>
-              {p.name}
-              {isOpen && Object.hasOwn(answersForCurrent, p.id) ? " ✓" : ""}
-            </li>
-          ))}
-        </ul>
-      )}
+      <PlayerList players={players} answerdIds={answeredIds} />
     </div>
   );
 };
