@@ -41,6 +41,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Students who join late or refresh get the current question again
 - Live sessions currently support multiple choice questions only
 - Results are saved to the database as each question is revealed, and a review page shows the standings and the success rate of every question
+- Past sessions are listed for each activity, and an ended session can be deleted
 
 #### How a live session works
 
@@ -58,6 +59,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Everything that arrives through the channel is untrusted and validated with Zod before use. Player ids are compared with `Object.hasOwn`, so a client cannot claim an inherited key like `constructor`.
 - Time is measured by the teacher's browser when an answer arrives. Students never send a timestamp, so it cannot be forged.
 - Saved results contain student names. The table has no public read policy, so only the teacher who owns the session can read them.
+- Only an ended session can be deleted. The rule is enforced by a database policy, not only by hiding the button.
 
 **Correctness**
 - State changes are conditional in the database (`state->>status`, `ended_at is null`) and checked for zero affected rows, so a double click cannot score a question twice or end a session twice.
@@ -80,7 +82,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - **In speed mode, points depend on network latency**, because time is measured when the teacher receives the answer.
 - **Sessions that are never ended stay joinable.** There is no automatic expiry yet.
 - Supabase Realtime has usage limits on the free plan. Check the current limits before running a large class.
-- **Saved results include student names** and cannot be deleted from the app yet.
+- **Deleting an activity also deletes all of its saved sessions.**
 
 ## Tech Stack
 
@@ -159,6 +161,7 @@ src/
 │   ├── LiveHostPage.tsx     # Loads a live session, then draws the teacher's screen
 │   ├── JoinPage.tsx         # The student's live screen (only draws)
 │   ├── SessionReviewPage.tsx # Review of a finished live session
+│   ├── SessionsPage.tsx     # Past live sessions of an activity, with delete
 │   └── LoginPage.tsx
 ├── components/
 │   ├── form/                # Form fields for each question type
@@ -179,6 +182,7 @@ src/
 │   ├── useLiveSession.ts    # Loads a live session and its questions
 │   ├── useHostGame.ts       # The teacher's game: answers, scoring, state changes
 │   ├── useStudentGame.ts    # The student's game: join, recover, answer
+│   ├── useActivitySessions.ts # Lists the past sessions of an activity and deletes one
 │   ├── useLiveChannel.ts    # Realtime channel: presence list, broadcast send and receive
 │   ├── useHostSnapshot.ts   # Saves and restores the host's answers and scores
 │   └── useOnNewPlayers.ts   # Detects new players so the host can re-send the current state
@@ -195,6 +199,7 @@ src/
     ├── toPublicQuestion.ts  # Removes the correct answer before a question is broadcast
     ├── summarizeAnswers.ts  # Counts answers per option for connected players
     ├── summarizeSession.ts  # Turns a saved session into review data
+    ├── summarizeSessionList.ts # Rows for the past sessions list, newest first
     ├── calculateScore.ts    # Points for one answer, based on speed
     ├── scoreQuestion.ts     # Scores every answer of a question, and sums totals
     ├── buildLeaderboard.ts  # Sorted board with tie-aware ranks
@@ -254,7 +259,7 @@ To try a live session on one computer, open the teacher's page in one window and
 - [x] Live sessions: join code, real-time questions, configurable scoring, and a leaderboard
 - [x] Recovery after a refresh for both the teacher and the students
 - [x] Save live session results and review them on a page
-- [ ] List past sessions for each activity, and delete a session
+- [x] List past sessions for each activity, and delete a session
 - [ ] Restore a live session from its saved results on another device
 - [ ] Private Realtime channels, so only real participants can send events
 - [ ] Hide correct answers from public reads

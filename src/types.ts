@@ -5,7 +5,8 @@ import type {
   attemptSchema, sessionStateSchema, liveSessionSchema, 
   joinedSessionsSchema, participantSchema, publicQuestionSchema, 
   questionEventSchema, answerEventSchema, revealEventSchema, 
-  finalEventSchema, scoringModeSchema, sessionResultsSchema
+  finalEventSchema, scoringModeSchema, sessionResultsSchema,
+  sessionRowSchema
 } from './schemas';
 
 export type McqQuestion = z.infer<typeof mcqQuestionSchema>;
@@ -53,4 +54,5 @@ export type RevealEvent = z.infer<typeof revealEventSchema>;
 export type FinalEvent = z.infer<typeof finalEventSchema>;
 export type ScoringMode = z.infer<typeof scoringModeSchema>;
 export type SessionResults = z.infer<typeof sessionResultsSchema>;
+export type SessionRow = z.infer<typeof sessionRowSchema>;
 export type Participant = z.infer<typeof participantSchema>;
