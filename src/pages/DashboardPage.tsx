@@ -54,7 +54,7 @@ function DashboardPage() {
     navigate(`/activities/${data.id}/edit`);
   }
   async function handleDelete(id: string) {
-    if (!confirm("متأكد بدك تحذف هذا النشاط؟ ما في تراجع.")) return;
+    if (!confirm("متأكد بدك تحذف هذا النشاط؟ رح تنحذف معه كل جلساته المحفوظة ونتائجها، وما في تراجع.")) return;
 
     const { error } = await supabase.from('activities').delete().eq('id', id);
     if (error) {
@@ -99,6 +99,7 @@ function DashboardPage() {
               <Link className="btn btn-primary" to={`/activities/${a.id}/edit`}>تعديل</Link>
               <Link className="btn" to={`/play/${a.id}`}>تجربة</Link>
               <Link className="btn" to={`/activities/${a.id}/results`}>النتائج</Link>
+              <Link className="btn" to={`/activities/${a.id}/sessions`}>الجلسات</Link>
               <button
                 className="btn"
                 onClick={() => handleStartLive(a.id)}
