@@ -97,6 +97,16 @@ export const liveSessionSchema = z.object({
   ended_at: z.string().nullable(),
 });
 
+export const sessionRowSchema = liveSessionSchema.pick({
+  id: true,
+  code: true,
+  created_at: true,
+  ended_at: true,
+  scoring_mode: true,
+  results: true,
+});
+export const sessionRowsSchema = z.array(sessionRowSchema);
+
 export const joinedSessionsSchema = z.array(
   z.object({
     session_id: z.string(),
