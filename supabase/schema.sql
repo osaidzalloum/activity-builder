@@ -96,8 +96,10 @@ create policy "Hosts can update their sessions"
   on live_sessions for update
   using (auth.uid() = host_id) with check (auth.uid() = host_id);
 
-create policy "Hosts can delete their sessions"
-  on live_sessions for delete using (auth.uid() = host_id);
+-- Only an ended session can be deleted, so a running one cannot be removed from anywhere.
+create policy "Hosts can delete their ended sessions"
+  on live_sessions for delete
+  using (auth.uid() = host_id and ended_at is not null);
 
 -- Students join by code through this function only.
 -- It returns at most one active session, so nobody can list all codes.
