@@ -620,3 +620,78 @@ describe("useHostGame: a refresh", () => {
     expect(lastUpdate().changes.results).toMatchObject({ players: { gone: "Zed", p1: "Amy" } });
   });
 });
+
+describe("useHostGame: another device", () => {
+  // what the database holds after question 1 was revealed to Amy and Bob
+  const savedResults: LiveSession["results"] = {
+    players: { p1: "Amy", p2: "Bob" },
+    questions: [
+      {
+        id: "q1",
+        text: "Q1",
+        options: ["a", "b", "c"],
+        correctIndex: 1,
+        answers: { p1: { choice: 1, points: 1000 }, p2: { choice: 0, points: 0 } },
+      },
+    ],
+  };
+  const afterFirstReveal: LiveSession = {
+    ...lobby,
+    state: { status: "reveal", index: 0, startedAt: 1000 },
+    results: savedResults,
+  };
+
+  it("rebuilds the scores of the revealed questions when this browser has nothing saved", () => {
+    h.participants = [player("p1", "Amy"), player("p2", "Bob")];
+
+    const { result } = setup(afterFirstReveal);
+
+    expect(result.current.hasScores).toBe(true);
+    expect(result.current.board.map((e) => [e.name, e.points, e.rank])).toEqual([
+      ["Amy", 1000, 1],
+      ["Bob", 0, 2],
+    ]);
+  });
+
+  it("keeps the questions saved earlier when the next question is revealed", async () => {
+    h.participants = [player("p1", "Amy"), player("p2", "Bob")];
+    const { result } = setup(afterFirstReveal);
+    await startQuestion(result);
+    await receive("answer", answer("p1", 0, 1));
+    await receive("answer", answer("p2", 1, 1));
+
+    await reveal(result);
+
+    const saved = lastUpdate().changes.results as LiveSession["results"];
+    expect(saved.questions.map((q) => q.id)).toEqual(["q1", "q2"]);
+    expect(saved.questions[0].answers.p1).toEqual({ choice: 1, points: 1000 });
+    expect(result.current.board.map((e) => [e.name, e.points])).toEqual([
+      ["Amy", 2000],
+      ["Bob", 0],
+    ]);
+  });
+
+  it("keeps the answers to the open question that this browser saved", () => {
+    h.participants = [player("p1", "Amy")];
+    localStorage.setItem(
+      "live-session:ABC123",
+      JSON.stringify({ answers: { 1: { p1: { choice: 0, receivedAt: 5 } } }, scores: {} })
+    );
+
+    const { result } = setup({
+      ...lobby,
+      state: { status: "question", index: 1, startedAt: 1000 },
+      results: savedResults,
+    });
+
+    expect(result.current.answeredCount).toBe(1);
+    // and the revealed question comes from the database
+    expect(result.current.hasScores).toBe(true);
+  });
+
+  it("starts from an empty board when nothing was revealed yet", () => {
+    const { result } = setup();
+
+    expect(result.current.hasScores).toBe(false);
+  });
+});

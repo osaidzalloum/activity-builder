@@ -10,6 +10,7 @@ import { buildSessionResults } from "../utils/buildSessionResults";
 import { scoreQuestion, sumScores } from "../utils/scoreQuestion";
 import { summarizeAnswers } from "../utils/summarizeAnswers";
 import { toPublicQuestion } from "../utils/toPublicQuestion";
+import { snapshotFromResults } from "../utils/restoreSnapshot";
 import useHostSnapshot from "./useHostSnapshot";
 import useLiveChannel from "./useLiveChannel";
 import useOnNewPlayers from "./useOnNewPlayers";
@@ -41,9 +42,31 @@ type StateChange = {
 export default function useHostGame(initialSession: LiveSession, questions: Question[]) {
   const { user } = useAuth();
 
+   // live sessions support multiple choice only (for now)
+  const liveQuestions = useMemo(
+    () => questions.filter((q): q is McqQuestion => q.type === "mcq"),
+    [questions]
+  );
+  // same order and length as liveQuestions, but without the answers
+  const publicQuestions = useMemo(
+    () =>
+      liveQuestions.flatMap((q) => {
+        const publicQuestion = toPublicQuestion(q);
+        return publicQuestion ? [publicQuestion] : [];
+      }),
+    [liveQuestions]
+  );
+
   const [session, setSession] = useState(initialSession);
-  const [snapshot, setSnapshot] = useHostSnapshot(session.code);
+  // what the database already knows about the questions revealed so far,
+  // in case this browser has lost its own copy (another device, cleared data)
+  const savedSnapshot = useMemo(
+    () => snapshotFromResults(initialSession.results, liveQuestions),
+    [initialSession, liveQuestions]
+  );
+  const [snapshot, setSnapshot] = useHostSnapshot(session.code, savedSnapshot);
   const { answers, scores } = snapshot;
+
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -84,20 +107,6 @@ export default function useHostGame(initialSession: LiveSession, questions: Ques
   );
   const players = participants.filter((p) => p.role === "player");
 
-  // live sessions support multiple choice only (for now)
-  const liveQuestions = useMemo(
-    () => questions.filter((q): q is McqQuestion => q.type === "mcq"),
-    [questions]
-  );
-  // same order and length as liveQuestions, but without the answers
-  const publicQuestions = useMemo(
-    () =>
-      liveQuestions.flatMap((q) => {
-        const publicQuestion = toPublicQuestion(q);
-        return publicQuestion ? [publicQuestion] : [];
-      }),
-    [liveQuestions]
-  );
 
   // a student who joined late or refreshed gets the current state again;
   // students who already have it ignore the repeat
