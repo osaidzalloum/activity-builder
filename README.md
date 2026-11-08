@@ -37,7 +37,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - A live leaderboard where tied players share a rank
 - After each reveal, students see their points, total, rank, and the top five
 - Ending a session shows the final standings and closes the join code
-- Recovery: the teacher can refresh without losing answers and scores, and students come back to the same session with the same identity
+- Recovery: the teacher can refresh without losing answers and scores, and can even continue from another device, since the revealed questions are rebuilt from the saved results. Students come back to the same session with the same identity
 - Students who join late or refresh get the current question again
 - Live sessions currently support multiple choice questions only
 - Results are saved to the database as each question is revealed, and a review page shows the standings and the success rate of every question
@@ -70,6 +70,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 
 **Recovery**
 - The teacher's answers and scores are saved in `localStorage` and validated with Zod when restored.
+- On load, the host's data for every question already revealed is rebuilt from the saved results, matched by question id so that editing the activity later does not misplace it. This browser's own copy only fills in what the database does not know, such as the answers to a question that is still open. Without this, revealing a question on a second device overwrote the saved results with that question alone.
 - A student's identity and last answer are kept in `sessionStorage`, so a refresh keeps the same score and cannot change an answer. It is cleared when the tab closes, so a shared device does not leak identities.
 - The student's page is idempotent: the host may repeat the current question, and a student who already has it ignores the repeat.
 
@@ -78,7 +79,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - **Realtime channels are public.** Anyone who knows the code can join the channel and send fake events. The next step is private channels with authorization.
 - **Correct answers are still stored in `activities`**, which anyone with the activity link can read. A technical student could fetch them from the API. Hiding them needs a view or a function that omits `correctIndex` for public reads.
 - **Broadcasts are visible to every participant.** Students could see other players' answers by inspecting WebSocket traffic. The top-five names are broadcast to everyone by design.
-- **The teacher's browser is the host.** If it is closed, the session stops. Answers to a question that was not revealed yet live in that browser only, and answers sent while the page was reloading are lost. Revealed questions are saved in the database, but a session is not restored from them on another device yet.
+- **The teacher's browser is the host.** If it is closed, the session stops. Answers to a question that was not revealed yet live in that browser only, so switching device in the middle of an open question loses them, and so do answers sent while the page was reloading. Revealed questions are saved in the database and are restored on any device.
 - **In speed mode, points depend on network latency**, because time is measured when the teacher receives the answer.
 - **Sessions that are never ended stay joinable.** There is no automatic expiry yet.
 - Supabase Realtime has usage limits on the free plan. Check the current limits before running a large class.
@@ -113,6 +114,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Making a session recoverable after a refresh, and finding that a ref-based restore wiped saved data under React StrictMode (fixed by moving the flag to state, with a regression test)
 - Avoiding stale closures in event handlers with functional updates and a latest-callback ref
 - Saving state that is derived from in-memory data in the same request as each state change, so a retry overwrites instead of duplicating
+- Finding a data-loss bug (revealing a question on a second device overwrote the saved results) by writing the failing test first, then fixing it and checking that the fix is tested by breaking it on purpose
 
 ### React Patterns
 - Designing components around shared interfaces (`onAnswer`, `onFinish`) so new question types and features plug in without rewrites
@@ -208,6 +210,7 @@ src/
     ├── buildFinalSummary.ts
     ├── buildSessionResults.ts  # Saved record of a session, built from the host's data
     ├── hostSnapshot.ts      # Parses and validates the host's saved state
+    ├── restoreSnapshot.ts   # Rebuilds the host's data from saved results, and merges it with this browser's copy
     └── storedPlayer.ts      # Parses and validates a student's saved identity
 ```
 
@@ -261,7 +264,7 @@ To try a live session on one computer, open the teacher's page in one window and
 - [x] Recovery after a refresh for both the teacher and the students
 - [x] Save live session results and review them on a page
 - [x] List past sessions for each activity, and delete a session
-- [ ] Restore a live session from its saved results on another device
+- [x] Restore a live session from its saved results on another device
 - [ ] Private Realtime channels, so only real participants can send events
 - [ ] Hide correct answers from public reads
 - [ ] Ordering and matching questions in live sessions
