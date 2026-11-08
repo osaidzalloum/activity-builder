@@ -135,6 +135,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Breaking the code on purpose to confirm each test fails when it should
 - Writing regression tests that lock in fixed bugs
 - Running type checks, tests, and builds on every push with GitHub Actions
+- Testing hooks that talk to Supabase and Realtime by mocking only those two boundaries, and breaking the code on purpose to check that each safety rule has a test that fails
 
 ## Project Structure
 
