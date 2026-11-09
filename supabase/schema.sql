@@ -258,13 +258,25 @@ create policy "Host receives the answers"
 
 -- A student of a running session: receives what the host sends and who is connected,
 -- may announce their own presence, and may send answers. Nothing else:
--- no broadcast on the live channel (so no fake questions), and no reading the answers channel.
+-- no broadcast on the live channel, so nobody can send a fake question or a fake reveal.
 create policy "Students receive the live channel of a running session"
   on realtime.messages for select
   to authenticated
   using (
     (select realtime.topic()) like 'live:%'
     and realtime.messages.extension in ('broadcast', 'presence')
+    and live_session_is_active(split_part((select realtime.topic()), ':', 2))
+  );
+  
+-- Joining a private channel needs the permission to READ it (the server refuses the join otherwise),
+-- so a student must be allowed to read the answers channel in order to send on it.
+-- The cost: a determined student can listen to the others' answers.
+create policy "Students join the answers channel of a running session"
+  on realtime.messages for select
+  to authenticated
+  using (
+    (select realtime.topic()) like 'answers:%'
+    and realtime.messages.extension = 'broadcast'
     and live_session_is_active(split_part((select realtime.topic()), ':', 2))
   );
 
