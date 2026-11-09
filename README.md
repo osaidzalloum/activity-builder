@@ -216,8 +216,9 @@ src/
 
 ## Run Locally
 
-1. Create a free project on [Supabase](https://supabase.com) and run the SQL in `supabase/schema.sql` in the SQL Editor. It creates the tables, the policies, and the live session functions.
-2. Create a `.env.local` file in the project root:
+1. Create a free project on [Supabase](https://supabase.com) and run `supabase/schema.sql` once in the SQL Editor. It expects an empty project: it creates the tables, the policies, and the live session functions, and running it a second time fails with "already exists".
+2. Create a teacher account (Authentication, then Users, then Add user). For local testing you can turn off email confirmation in the Auth settings.
+3. Create a `.env.local` file in the project root:
 
 ```
 VITE_SUPABASE_URL=your-project-url
