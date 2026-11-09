@@ -468,3 +468,88 @@ describe("useStudentGame: who is here", () => {
     expect(result.current.hostConnected).toBe(false);
   });
 });
+
+describe("useStudentGame: sending the answer again", () => {
+  it("sends the answer again when the host repeats the question", async () => {
+    const { result } = await inQuestion(0);
+    await choose(result, 1);
+    h.send.mockClear();
+
+    await receive("question", question(0));
+
+    expect(h.send).toHaveBeenCalledTimes(1);
+    expect(h.send).toHaveBeenCalledWith("answer", { playerId: myId(), index: 0, choice: 1 });
+  });
+
+  it("keeps the same choice on screen after sending it again", async () => {
+    const { result } = await inQuestion(0);
+    await choose(result, 1);
+
+    await receive("question", question(0));
+
+    expect(result.current.selected).toBe(1);
+  });
+
+  it("sends nothing when the student has not answered", async () => {
+    const { result } = await inQuestion(0);
+    expect(result.current.selected).toBeNull();
+
+    await receive("question", question(0));
+
+    expect(h.send).not.toHaveBeenCalled();
+  });
+
+  it("does not send the old answer for the next question", async () => {
+    const { result } = await inQuestion(0);
+    await choose(result, 1);
+    h.send.mockClear();
+
+    await receive("question", question(1));
+
+    expect(h.send).not.toHaveBeenCalled();
+  });
+
+  it("does not send an answer that never reached the host", async () => {
+    const { result } = await inQuestion(0);
+    h.send.mockResolvedValue(false);
+    await choose(result, 1);
+    h.send.mockClear();
+
+    await receive("question", question(0));
+
+    expect(h.send).not.toHaveBeenCalled();
+  });
+
+  it("sends the remembered answer after a refresh, when the question arrives again", async () => {
+    sessionStorage.setItem(KEY, JSON.stringify(stored({ index: 0, choice: 2 })));
+    h.checkSession.mockResolvedValue("active");
+    const { result } = setup();
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+
+    await receive("question", question(0));
+
+    expect(h.send).toHaveBeenCalledWith("answer", { playerId: "me", index: 0, choice: 2 });
+  });
+
+  it("does not send a remembered answer that belongs to another question", async () => {
+    sessionStorage.setItem(KEY, JSON.stringify(stored({ index: 0, choice: 2 })));
+    h.checkSession.mockResolvedValue("active");
+    const { result } = setup();
+    await waitFor(() => expect(result.current.restoring).toBe(false));
+
+    await receive("question", question(1));
+
+    expect(h.send).not.toHaveBeenCalled();
+  });
+
+  it("sends the answer again each time the host repeats the question", async () => {
+    const { result } = await inQuestion(0);
+    await choose(result, 1);
+    h.send.mockClear();
+
+    await receive("question", question(0));
+    await receive("question", question(0));
+
+    expect(h.send).toHaveBeenCalledTimes(2);
+  });
+});

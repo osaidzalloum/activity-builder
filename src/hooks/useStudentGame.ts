@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   finalEventSchema,
   participantSchema,
@@ -24,6 +24,8 @@ export default function useStudentGame() {
   const [answer, setAnswer] = useState<{ index: number; choice: number } | null>(
     () => stored?.answer ?? null
   );
+  // the handler below is created before the channel exists, so it reaches `send` through a ref
+  const sendRef = useRef<((event: string, payload: unknown) => Promise<boolean>) | null>(null);
   const [revealed, setRevealed] = useState<RevealEvent | null>(null);
   const [final, setFinal] = useState<FinalEvent | null>(null);
   const [answerError, setAnswerError] = useState("");
@@ -69,6 +71,12 @@ export default function useStudentGame() {
       // nothing, and an older one never replaces a newer one
       setCurrent((prev) => (prev && prev.index >= incoming.index ? prev : incoming));
       setAnswerError("");
+      // the host may have lost this student's answer (it was reopened on another device, or its
+      // data was cleared), so send it again. Safe to repeat: the host keeps only the first answer.
+      if (answer?.index === incoming.index) {
+        const resend: AnswerEvent = { playerId, index: incoming.index, choice: answer.choice };
+        void sendRef.current?.("answer", resend);
+      }
     } else if (event === "reveal") {
       const parsed = revealEventSchema.safeParse(payload);
       if (!parsed.success) {
@@ -96,6 +104,9 @@ export default function useStudentGame() {
     "player",
     handleBroadcast
   );
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
   const players = participants.filter((p) => p.role === "player");
   const hostConnected = participants.some((p) => p.role === "host");
 
