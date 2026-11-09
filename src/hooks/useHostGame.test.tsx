@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   reply: { data: [{ id: "s1" }], error: null } as Reply,
   queue: [] as Reply[],
   participants: [] as unknown[],
+  failed: false,
   send: vi.fn(),
   onBroadcast: undefined as ((event: string, payload: unknown) => void) | undefined,
 }));
@@ -55,7 +56,7 @@ vi.mock("./useLiveChannel", () => ({
     onBroadcast: (event: string, payload: unknown) => void
   ) => {
     h.onBroadcast = onBroadcast;
-    return { participants: h.participants, send: h.send };
+    return { participants: h.participants, send: h.send, failed: h.failed };
   },
 }));
 
@@ -116,6 +117,7 @@ beforeEach(() => {
   h.queue.length = 0;
   h.reply = { data: [{ id: "s1" }], error: null };
   h.participants = [];
+  h.failed = false;
   h.onBroadcast = undefined;
   h.send.mockReset();
   h.send.mockImplementation(async () => {
@@ -752,5 +754,21 @@ describe("useHostGame: switching device in the middle of a question", () => {
       ["Amy", 1000],
       ["Bob", 0],
     ]);
+  });
+});
+
+describe("useHostGame: the channels", () => {
+  it("shows no problem when the channels are joined", () => {
+    const { result } = setup();
+
+    expect(result.current.connectionFailed).toBe(false);
+  });
+
+  it("reports it when the live channels cannot be joined", () => {
+    h.failed = true;
+
+    const { result } = setup();
+
+    expect(result.current.connectionFailed).toBe(true);
   });
 });

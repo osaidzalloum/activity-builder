@@ -180,3 +180,120 @@ grant select, delete on attempts to authenticated;
 
 -- students never touch this table directly: they go through join_session
 grant select, insert, update, delete on live_sessions to authenticated;
+
+-- =====================================================================
+-- Private Realtime channels
+--
+-- A live session uses two channels, so a role can be told apart by the channel it may use
+-- (a policy on realtime.messages can only look at the topic and the message type):
+--   live:CODE     host -> students: questions, reveals, the end, and who is connected (presence)
+--   answers:CODE  students -> host: the answers, and nothing else
+-- =====================================================================
+
+-- Anonymous users (students signed in without an account) use the "authenticated" role.
+-- Teacher-only actions must therefore refuse them explicitly.
+create policy "Only permanent users can create activities"
+  on activities as restrictive for insert
+  to authenticated
+  with check ((select (auth.jwt() ->> 'is_anonymous')::boolean) is not true);
+
+-- The channel policies cannot read live_sessions (only the host may), so they ask these two
+-- functions, which return a yes or no and nothing else.
+create or replace function live_session_is_active(p_code text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from live_sessions s where s.code = p_code and s.ended_at is null
+  );
+$$;
+
+create or replace function live_session_is_host(p_code text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from live_sessions s where s.code = p_code and s.host_id = (select auth.uid())
+  );
+$$;
+
+revoke all on function live_session_is_active(text) from public;
+revoke all on function live_session_is_host(text) from public;
+grant execute on function live_session_is_active(text) to authenticated;
+grant execute on function live_session_is_host(text) to authenticated;
+
+-- The host: receives and sends on the session's channel, and receives the answers.
+create policy "Host receives and sends on the live channel"
+  on realtime.messages for select
+  to authenticated
+  using (
+    (select realtime.topic()) like 'live:%'
+    and realtime.messages.extension in ('broadcast', 'presence')
+    and live_session_is_host(split_part((select realtime.topic()), ':', 2))
+  );
+
+create policy "Host sends on the live channel"
+  on realtime.messages for insert
+  to authenticated
+  with check (
+    (select realtime.topic()) like 'live:%'
+    and realtime.messages.extension in ('broadcast', 'presence')
+    and live_session_is_host(split_part((select realtime.topic()), ':', 2))
+  );
+
+create policy "Host receives the answers"
+  on realtime.messages for select
+  to authenticated
+  using (
+    (select realtime.topic()) like 'answers:%'
+    and realtime.messages.extension = 'broadcast'
+    and live_session_is_host(split_part((select realtime.topic()), ':', 2))
+  );
+
+-- A student of a running session: receives what the host sends and who is connected,
+-- may announce their own presence, and may send answers. Nothing else:
+-- no broadcast on the live channel, so nobody can send a fake question or a fake reveal.
+create policy "Students receive the live channel of a running session"
+  on realtime.messages for select
+  to authenticated
+  using (
+    (select realtime.topic()) like 'live:%'
+    and realtime.messages.extension in ('broadcast', 'presence')
+    and live_session_is_active(split_part((select realtime.topic()), ':', 2))
+  );
+  
+-- Joining a private channel needs the permission to READ it (the server refuses the join otherwise),
+-- so a student must be allowed to read the answers channel in order to send on it.
+-- The cost: a determined student can listen to the others' answers.
+create policy "Students join the answers channel of a running session"
+  on realtime.messages for select
+  to authenticated
+  using (
+    (select realtime.topic()) like 'answers:%'
+    and realtime.messages.extension = 'broadcast'
+    and live_session_is_active(split_part((select realtime.topic()), ':', 2))
+  );
+
+create policy "Students announce their presence on a running session"
+  on realtime.messages for insert
+  to authenticated
+  with check (
+    (select realtime.topic()) like 'live:%'
+    and realtime.messages.extension = 'presence'
+    and live_session_is_active(split_part((select realtime.topic()), ':', 2))
+  );
+
+create policy "Students send their answers to a running session"
+  on realtime.messages for insert
+  to authenticated
+  with check (
+    (select realtime.topic()) like 'answers:%'
+    and realtime.messages.extension = 'broadcast'
+    and live_session_is_active(split_part((select realtime.topic()), ':', 2))
+  );

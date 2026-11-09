@@ -39,6 +39,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Ending a session shows the final standings and closes the join code
 - Recovery: the teacher can refresh, or continue from another device, without losing answers and scores: revealed questions are rebuilt from the saved results, and students send their answer again when the host repeats the question. Students come back to the same session with the same identity
 - Students who join late or refresh get the current question again
+- The channels are private: only the teacher can send questions, reveals, and the end of a session. Students sign in anonymously (still no account) and can only send answers
 - Live sessions currently support multiple choice questions only
 - Results are saved to the database as each question is revealed, and a review page shows the standings and the success rate of every question
 - Past sessions are listed for each activity, and an ended session can be deleted
@@ -47,7 +48,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 
 1. The teacher clicks **Live session** on an activity. The database creates a session with a unique code.
 2. Students open `/join` and enter the code. The code is checked through a database function, never by reading the table.
-3. Everyone connects to one Realtime channel. The teacher broadcasts each question **without its correct answer**, and students send back only their choice.
+3. Students sign in anonymously, then everyone connects to two private Realtime channels. The teacher sends each question **without its correct answer** on one, and students send back only their choice on the other.
 4. On **Reveal**, the teacher's browser scores the answers, saves the new state **and the session results** to the database in one request, and broadcasts the correct answer with each student's result.
 
 ## Design decisions (live sessions)
@@ -59,6 +60,10 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Everything that arrives through the channel is untrusted and validated with Zod before use. Player ids are compared with `Object.hasOwn`, so a client cannot claim an inherited key like `constructor`.
 - Time is measured by the teacher's browser when an answer arrives. Students never send a timestamp, so it cannot be forged.
 - Saved results contain student names. The table has no public read policy, so only the teacher who owns the session can read them.
+- The channels are private, and policies on `realtime.messages` decide who can join and who can send. A live session uses two topics, because a policy can only look at the topic and the type of message, not at the event name: on `live:CODE` only the host can broadcast (students can read it and announce their presence), and students send their answers on `answers:CODE`. This is what stops a student from sending a fake question, reveal, or end of session.
+- Students sign in anonymously with a separate client whose session lives in `sessionStorage`, so each tab is its own identity and a shared device does not leak one. Anonymous users use the `authenticated` role, so the policy that lets teachers create activities refuses them explicitly (a restrictive policy on the `is_anonymous` claim).
+- The policies cannot read `live_sessions` (only the host may), so two `security definer` functions answer yes or no and nothing else.
+- Public channels are refused (the "Allow public access to channels" setting is off), so a channel that is not private cannot be opened with the public key.
 - Only an ended session can be deleted. The rule is enforced by a database policy, not only by hiding the button.
 
 **Correctness**
@@ -77,20 +82,22 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 
 ## Known limitations
 
-- **Realtime channels are public.** Anyone who knows the code can join the channel and send fake events. The next step is private channels with authorization.
+- **A student can answer on behalf of another student.** The answer carries a player id that other students can see in the lobby, and a policy cannot look inside a message. Per-student answer topics would fix it.
 - **Correct answers are still stored in `activities`**, which anyone with the activity link can read. A technical student could fetch them from the API. Hiding them needs a view or a function that omits `correctIndex` for public reads.
-- **Broadcasts are visible to every participant.** Students could see other players' answers by inspecting WebSocket traffic. The top-five names are broadcast to everyone by design.
+- **A determined student can listen to the answers channel.** Joining a private channel needs the permission to read it, so students can read it in order to send on it. Anyone signed in who knows an active code (even another teacher) can read the channels like a student. The top-five names are broadcast to everyone by design.
 - **The teacher's browser is the host.** If it is closed, the session stops. Answers to a question that is still open live in that browser, but students send theirs again when the host repeats the question, so a new device or a reloaded page collects them back. In speed mode a re-sent answer is timed when it arrives again, so it earns less of the speed bonus. Revealed questions are saved in the database and are restored on any device.
 - **In speed mode, points depend on network latency**, because time is measured when the teacher receives the answer.
 - **Sessions that are never ended stay joinable.** There is no automatic expiry yet.
 - Supabase Realtime has usage limits on the free plan. Check the current limits before running a large class.
+- **Anonymous sign-ins** are limited per IP address per hour (raised from 30 to 300 in the dashboard, because a class shares one address), they are not cleaned up automatically, and there is no CAPTCHA.
+- **Access checks use a connection pool in Realtime** (a dashboard setting): a very large class joining at once may need it raised.
 - **Deleting an activity also deletes all of its saved sessions.**
 
 ## Tech Stack
 
 - React + TypeScript (Vite)
 - React Router
-- Supabase (PostgreSQL, Auth, Row Level Security, Realtime Presence and Broadcast)
+- Supabase (PostgreSQL, Auth with anonymous sign-ins, Row Level Security, Realtime Presence and Broadcast on private channels)
 - Zod (runtime validation)
 - dnd-kit (drag and drop)
 - Vitest + React Testing Library
@@ -107,6 +114,9 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Linking answers to stable question IDs instead of array positions, and migrating legacy data when a stored shape changes
 - Keeping secret API keys off the client with a serverless proxy
 - Choosing an access model by the secret's strength: an unguessable link can use public read, a short join code needs a restricted `security definer` function
+- Using Realtime Authorization: policies on `realtime.messages` that can only see the topic and the message type, so roles are separated by channel
+- Reading the current docs at their source, and then finding where the real service behaves differently from them (joining a private channel needs the read permission), which only a test on a real project can show
+- Remembering that anonymous users share the `authenticated` role, and reviewing the existing policies for what they would now allow
 
 ### Real-time & Untrusted Clients
 - Using Supabase Realtime Presence for a live lobby and Broadcast for events, and learning that `send()` resolves immediately unless acknowledgement is enabled
@@ -188,7 +198,7 @@ src/
 │   ├── useHostGame.ts       # The teacher's game: answers, scoring, state changes
 │   ├── useStudentGame.ts    # The student's game: join, recover, answer
 │   ├── useActivitySessions.ts # Lists the past sessions of an activity and deletes one
-│   ├── useLiveChannel.ts    # Realtime channel: presence list, broadcast send and receive
+│   ├── useLiveChannel.ts    # Two private channels (live, answers): presence, send and receive, anonymous sign-in for students
 │   ├── useHostSnapshot.ts   # Saves and restores the host's answers and scores
 │   └── useOnNewPlayers.ts   # Detects new players so the host can re-send the current state
 ├── test/
@@ -198,6 +208,7 @@ src/
 │   ├── trivia.ts            # Fetches and maps trivia questions
 │   ├── joinSession.ts       # Checks a join code through the join_session function
 │   └── playerStorage.ts     # A student's identity and last answer, per tab
+│   ├── studentSupabase.ts   # A separate client for students: an anonymous identity kept in the tab
 └── utils/                   # Pure logic, each file unit tested next to it
     ├── shuffle.ts
     ├── validateQuestion.ts
@@ -220,7 +231,8 @@ src/
 
 1. Create a free project on [Supabase](https://supabase.com) and run `supabase/schema.sql` once in the SQL Editor. It expects an empty project: it creates the tables, the policies, and the live session functions, and running it a second time fails with "already exists".
 2. Create a teacher account (Authentication, then Users, then Add user). For local testing you can turn off email confirmation in the Auth settings.
-3. Create a `.env.local` file in the project root:
+3. For live sessions, in the Supabase dashboard: turn on **Allow anonymous sign-ins** (Authentication, Sign In / Providers), raise the anonymous sign-ins limit (Authentication, Rate Limits: the default is 30 per hour per IP address, and a class behind one address needs more), and turn off **Allow public access to channels** (Realtime, Settings) so that only private channels work. Anonymous users are not cleaned up automatically, so from time to time run `delete from auth.users where is_anonymous is true and created_at < now() - interval '30 days';`.
+4. Create a `.env.local` file in the project root:
 
 ```
 VITE_SUPABASE_URL=your-project-url
@@ -269,7 +281,7 @@ To try a live session on one computer, open the teacher's page in one window and
 - [x] List past sessions for each activity, and delete a session
 - [x] Restore a live session from its saved results on another device
 - [x] Students send their answer again after the host switches device in the middle of a question
-- [ ] Private Realtime channels, so only real participants can send events
+- [x] Private Realtime channels: only the teacher can send questions and reveals
 - [ ] Hide correct answers from public reads
 - [ ] Ordering and matching questions in live sessions
 - [ ] Expire live sessions that were never ended
@@ -277,3 +289,4 @@ To try a live session on one computer, open the teacher's page in one window and
 - [ ] Images in questions (Supabase Storage)
 - [ ] Integration test for the full play flow (answer, score, and onFinish)
 - [ ] Re-enable email confirmation and add password reset
+- [ ] Per-student answer channels (answers private to the teacher, and nobody can answer on behalf of another student)

@@ -98,7 +98,7 @@ export default function useHostGame(initialSession: LiveSession, questions: Ques
     });
   }
 
-  const { participants, send } = useLiveChannel(
+  const { participants, send, failed } = useLiveChannel(
     session.code,
     user?.id,
     "Host",
@@ -339,6 +339,8 @@ export default function useHostGame(initialSession: LiveSession, questions: Ques
     scoringMode,
     busy,
     actionError,
+    // true while the live channels cannot be joined
+    connectionFailed: failed,
     // who is here, and the standings
     players,
     board,

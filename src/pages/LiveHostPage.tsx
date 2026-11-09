@@ -17,6 +17,7 @@ function LiveHost({
     scoringMode,
     busy,
     actionError,
+    connectionFailed,
     players,
     board,
     hasScores,
@@ -50,6 +51,10 @@ function LiveHost({
           الطلاب بيفتحوا <strong>{window.location.origin}/join</strong> وبيكتبوا الكود
         </p>
       </div>
+
+      {connectionFailed && (
+        <p className="error">تعذر الاتصال بقنوات الجلسة. تأكد من الإنترنت وحدّث الصفحة.</p>
+      )}
 
       {skipped > 0 && (
         <p className="hint">
