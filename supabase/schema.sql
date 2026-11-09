@@ -1,4 +1,11 @@
+-- Activity Builder: tables, Row Level Security policies, and the live session functions.
+-- Run this whole file once, in the SQL Editor of an empty Supabase project.
+-- The browser talks to the database directly, so these policies are the real protection,
+-- not the public key.
+
+-- =====================================================================
 -- Activities: each activity belongs to a teacher and stores its questions as JSON.
+-- =====================================================================
 create table activities (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users default auth.uid(),
@@ -7,8 +14,6 @@ create table activities (
   created_at timestamptz not null default now()
 );
 
--- Row Level Security: the browser talks to the database directly,
--- so these policies are the real protection, not the public key.
 alter table activities enable row level security;
 
 -- Anyone with the link can view an activity (students don't need accounts).
@@ -25,8 +30,10 @@ create policy "Owners can update their activities"
 create policy "Owners can delete their activities"
   on activities for delete using (auth.uid() = owner_id);
 
-
-  create table attempts (
+-- =====================================================================
+-- Attempts: what a student submits after solving an activity.
+-- =====================================================================
+create table attempts (
   id uuid primary key default gen_random_uuid(),
   activity_id uuid not null references activities(id) on delete cascade,
   student_name text not null check (char_length(student_name) between 1 and 50),
@@ -61,8 +68,10 @@ create policy "Owners can delete attempts for their activities"
       and activities.owner_id = auth.uid()
   ));
 
-
-  create table live_sessions (
+-- =====================================================================
+-- Live sessions: a teacher runs an activity live, students join with a code.
+-- =====================================================================
+create table live_sessions (
   id uuid primary key default gen_random_uuid(),
   activity_id uuid not null references activities(id) on delete cascade,
   host_id uuid not null references auth.users default auth.uid(),
@@ -158,3 +167,16 @@ $$;
 revoke all on function create_live_session(uuid) from public;
 grant execute on function create_live_session(uuid) to authenticated;
 
+-- =====================================================================
+-- Table privileges. Row Level Security decides which rows; these decide which
+-- operations a role may even try. Spelled out so the file does not depend on a
+-- project's default privileges.
+-- =====================================================================
+grant select on activities to anon, authenticated;
+grant insert, update, delete on activities to authenticated;
+
+grant insert on attempts to anon, authenticated;
+grant select, delete on attempts to authenticated;
+
+-- students never touch this table directly: they go through join_session
+grant select, insert, update, delete on live_sessions to authenticated;
