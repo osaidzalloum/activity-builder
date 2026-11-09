@@ -97,7 +97,7 @@ export default function useStudentGame() {
     }
   }
 
-  const { participants, send } = useLiveChannel(
+  const { participants, send, failed } = useLiveChannel(
     joined?.code,
     playerId,
     joined?.name,
@@ -181,6 +181,8 @@ export default function useStudentGame() {
     // who is here
     players,
     hostConnected,
+    // true while the live channels cannot be joined
+    connectionFailed: failed,
     // what the student can do
     join,
     handleChoose,

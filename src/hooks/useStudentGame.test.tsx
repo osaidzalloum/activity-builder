@@ -5,6 +5,7 @@ import type { FinalEvent, QuestionEvent, RevealEvent } from "../types";
 // shared with the mocks below, which vitest moves to the top of the file
 const h = vi.hoisted(() => ({
   participants: [] as unknown[],
+  failed: false,
   send: vi.fn(),
   checkSession: vi.fn(),
   onBroadcast: undefined as ((event: string, payload: unknown) => void) | undefined,
@@ -22,7 +23,7 @@ vi.mock("./useLiveChannel", () => ({
   ) => {
     h.channelArgs = [code, id, name, role];
     h.onBroadcast = onBroadcast;
-    return { participants: h.participants, send: h.send };
+    return { participants: h.participants, send: h.send, failed: h.failed };
   },
 }));
 
@@ -85,6 +86,7 @@ const choose = (result: Hook, choice: number) =>
 beforeEach(() => {
   sessionStorage.clear();
   h.participants = [];
+  h.failed = false;
   h.onBroadcast = undefined;
   h.channelArgs = [];
   h.send.mockReset();
@@ -551,5 +553,21 @@ describe("useStudentGame: sending the answer again", () => {
     await receive("question", question(0));
 
     expect(h.send).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("useStudentGame: the channels", () => {
+  it("shows no problem when the channels are joined", () => {
+    const { result } = setup();
+
+    expect(result.current.connectionFailed).toBe(false);
+  });
+
+  it("reports it when the live channels cannot be joined", () => {
+    h.failed = true;
+
+    const { result } = setup();
+
+    expect(result.current.connectionFailed).toBe(true);
   });
 });

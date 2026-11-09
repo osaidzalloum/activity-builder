@@ -15,6 +15,7 @@ function JoinPage() {
     myFinal,
     players,
     hostConnected,
+    connectionFailed,
     join,
     handleChoose,
     handleLeave,
@@ -28,6 +29,9 @@ function JoinPage() {
 
   return (
     <div>
+      {connectionFailed && (
+        <p className="error">تعذر الاتصال بالجلسة. حدّث الصفحة وحاول مرة ثانية.</p>
+      )}
       {current ? (
         <StudentQuestion
           current={current}
