@@ -695,3 +695,62 @@ describe("useHostGame: another device", () => {
     expect(result.current.hasScores).toBe(false);
   });
 });
+
+describe("useHostGame: switching device in the middle of a question", () => {
+  const onQuestion: LiveSession = {
+    ...lobby,
+    state: { status: "question", index: 0, startedAt: 1000 },
+  };
+
+  it("repeats the question to the students, and counts the answers they send again", async () => {
+    // this browser has no answers for the open question
+    const { result, rerender } = setup(onQuestion);
+
+    h.participants = [player("p1", "Amy"), player("p2", "Bob")];
+    rerender();
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(sentEvents()).toEqual(["question"]);
+
+    await receive("answer", answer("p1", 1));
+    await receive("answer", answer("p2", 0));
+
+    expect(result.current.answeredCount).toBe(2);
+    expect(result.current.countFor(1)).toBe(1);
+    expect(result.current.countFor(0)).toBe(1);
+  });
+
+  it("counts an answer once, even when it arrives again", async () => {
+    h.participants = [player("p1", "Amy")];
+    const { result } = setup(onQuestion);
+
+    await receive("answer", answer("p1", 1));
+    await receive("answer", answer("p1", 1));
+
+    expect(result.current.answeredCount).toBe(1);
+  });
+
+  it("keeps the first choice if a repeated answer says something else", async () => {
+    h.participants = [player("p1", "Amy")];
+    const { result } = setup(onQuestion);
+
+    await receive("answer", answer("p1", 1));
+    await receive("answer", answer("p1", 2));
+
+    expect(result.current.countFor(1)).toBe(1);
+    expect(result.current.countFor(2)).toBe(0);
+  });
+
+  it("scores the answers it got back once the question is revealed", async () => {
+    h.participants = [player("p1", "Amy"), player("p2", "Bob")];
+    const { result } = setup(onQuestion);
+    await receive("answer", answer("p1", 1));
+    await receive("answer", answer("p2", 0));
+
+    await reveal(result);
+
+    expect(result.current.board.map((e) => [e.name, e.points])).toEqual([
+      ["Amy", 1000],
+      ["Bob", 0],
+    ]);
+  });
+});
