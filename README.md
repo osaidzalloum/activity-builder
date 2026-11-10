@@ -91,6 +91,7 @@ An Arabic-first (RTL) platform where teachers create interactive activities (mul
 - Supabase Realtime has usage limits on the free plan. Check the current limits before running a large class.
 - **Anonymous sign-ins** are limited per IP address per hour (raised from 30 to 300 in the dashboard, because a class shares one address), they are not cleaned up automatically, and there is no CAPTCHA.
 - **Access checks use a connection pool in Realtime** (a dashboard setting): a very large class joining at once may need it raised.
+- **The free Realtime plan allows 100 events per second**, and every answer is delivered to everyone in the session, so a class of about 25 is comfortable, while a much bigger class answering at the same moment may be disconnected for a moment (the client reconnects by itself).
 - **Deleting an activity also deletes all of its saved sessions.**
 
 ## Tech Stack
